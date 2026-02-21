@@ -201,6 +201,7 @@ async function startAnalysis(endpoint) {
   resultCard.style.display = 'block';
   analysisBody.innerHTML = '';
   reportSaved.textContent = '';
+  document.getElementById('copy-btn').style.display = 'none'; // 분석 시작 시 숨김
   setStatus('loading', '분석 준비 중...');
   analyzeBtn.disabled = true;
   btnIcon.textContent = '⏳';
@@ -251,6 +252,7 @@ async function startAnalysis(endpoint) {
             }
           } else if (data.type === 'done') {
             setStatus('done', '✅ 분석 완료!');
+            document.getElementById('copy-btn').style.display = 'inline-flex'; // 완료 시에만 표시
           } else if (data.type === 'error') {
             setStatus('error', `오류: ${data.message}`);
           }
