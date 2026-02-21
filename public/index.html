@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commit Analyzer — AI 커밋 분석기</title>
+  <meta name="description" content="AI 기반 git 커밋 문서화 및 코드 리뷰 에이전트" />
+  <meta name="theme-color" content="#6366f1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">Commit Analyzer</span>
+        <span class="logo-badge">AI</span>
+      </div>
+      <nav class="header-nav">
+        <button class="nav-btn active" data-tab="analyze" id="btn-analyze">분석하기</button>
+        <button class="nav-btn" data-tab="reports" id="btn-reports">리포트</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ── Main ── -->
+  <main class="main">
+
+    <!-- ── Tab: Analyze ── -->
+    <section class="tab-content active" id="tab-analyze">
+
+      <!-- API Key Warning -->
+      <div class="alert alert-warn" id="api-key-warn" style="display:none">
+        ⚠️ <strong>.env</strong> 파일에 <code>GEMINI_API_KEY</code>가 설정되지 않았습니다.
+        <code>c:\dev\commit-analyzer\.env</code> 파일을 생성하고 키를 입력해 주세요.
+      </div>
+
+      <!-- Project Selector Card -->
+      <div class="card selector-card">
+        <div class="card-header">
+          <h2 class="card-title">🗂 프로젝트 선택</h2>
+          <button class="refresh-btn" id="refresh-projects" title="새로고침">↻</button>
+        </div>
+        <!-- Mode Toggle -->
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="mode-commit" data-mode="commit">📦 최근 커밋 분석</button>
+          <button class="mode-btn" id="mode-status" data-mode="status">🔍 현재 변경사항 분석</button>
+        </div>
+        <div class="project-grid" id="project-grid">
+          <div class="skeleton-grid">
+            <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span class="selected-hint" id="selected-hint">프로젝트를 선택해 주세요</span>
+          <button class="btn-primary" id="analyze-btn" disabled>
+            <span class="btn-icon">🔍</span> 커밋 분석하기
+          </button>
+        </div>
+      </div>
+
+      <!-- Working Status Card (hidden until project selected in status mode) -->
+      <div class="card commit-card" id="status-card" style="display:none">
+        <h2 class="card-title">🔧 현재 변경사항 (미커밋)</h2>
+        <div class="commit-meta" id="status-meta"></div>
+        <div class="diff-toggle">
+          <button class="btn-ghost" id="status-diff-toggle-btn">diff 보기 ▾</button>
+          <pre class="diff-content" id="status-diff-content" style="display:none"></pre>
+        </div>
+      </div>
+
+      <!-- Commit Info Card (hidden until project selected) -->
+      <div class="card commit-card" id="commit-card" style="display:none">
+        <h2 class="card-title">📦 최근 커밋</h2>
+        <div class="commit-meta" id="commit-meta"></div>
+        <div class="diff-toggle">
+          <button class="btn-ghost" id="diff-toggle-btn">diff 보기 ▾</button>
+          <pre class="diff-content" id="diff-content" style="display:none"></pre>
+        </div>
+      </div>
+
+      <!-- Analysis Output -->
+      <div class="card result-card" id="result-card" style="display:none">
+        <div class="result-header">
+          <h2 class="card-title">📝 AI 분석 결과</h2>
+          <div class="result-actions">
+            <button class="btn-ghost" id="copy-btn">📋 복사</button>
+            <span class="report-saved" id="report-saved"></span>
+          </div>
+        </div>
+        <!-- Status bar -->
+        <div class="status-bar" id="status-bar">
+          <span class="status-dot loading"></span>
+          <span id="status-msg">분석 준비 중...</span>
+        </div>
+        <!-- Streaming output -->
+        <div class="analysis-body" id="analysis-body"></div>
+      </div>
+
+    </section>
+
+    <!-- ── Tab: Reports ── -->
+    <section class="tab-content" id="tab-reports">
+      <div class="card">
+        <h2 class="card-title">📁 저장된 리포트</h2>
+        <div id="reports-list" class="reports-list">
+          <p class="empty-state">아직 저장된 리포트가 없습니다.</p>
+        </div>
+      </div>
+      <div class="card" id="report-viewer" style="display:none">
+        <div class="result-header">
+          <h2 class="card-title" id="report-viewer-title">리포트</h2>
+          <button class="btn-ghost" id="close-report-btn">✕ 닫기</button>
+        </div>
+        <div class="analysis-body" id="report-viewer-body"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
