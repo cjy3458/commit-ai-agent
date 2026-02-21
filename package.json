@@ -1,11 +1,11 @@
 {
   "name": "commit-ai-agent",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "AI-powered git commit & working status analyzer with web UI",
   "type": "module",
   "main": "src/server.js",
   "bin": {
-    "commit-analyzer": "./bin/cli.js"
+    "commit-ai-agent": "./bin/cli.js"
   },
   "files": [
     "bin/",

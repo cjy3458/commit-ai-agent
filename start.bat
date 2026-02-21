@@ -1,7 +1,7 @@
 @echo off
-title Commit Analyzer
+title Commit Ai agent
 echo.
-echo  ⚡ Commit Analyzer 시작 중...
+echo  ⚡ Commit Ai agent 시작 중...
 echo.
 cd /d  "%~dp0"
 start "" "http://localhost:3000"

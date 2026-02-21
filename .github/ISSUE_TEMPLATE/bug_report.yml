@@ -1,0 +1,75 @@
+name: 버그 제보
+description: 오류나 예상치 못한 동작을 제보해 주세요.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        버그를 제보해 주셔서 감사합니다. 아래 항목을 최대한 채워 주시면 빠르게 확인할 수 있습니다.
+
+  - type: dropdown
+    id: run-method
+    attributes:
+      label: 실행 방법
+      description: 어떤 방식으로 실행하셨나요?
+      options:
+        - npx commit-ai-agent
+        - npm install -g (전역 설치)
+        - 직접 클론 (git clone)
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js 버전
+      description: "`node -v` 출력 결과"
+      placeholder: "예: v20.11.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 운영체제
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 버그 설명
+      description: 어떤 문제가 발생했나요?
+      placeholder: "무엇을 했는데 어떤 오류가 났는지 간단히 설명해 주세요."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 방법
+      description: 버그를 다시 발생시키려면 어떻게 해야 하나요?
+      placeholder: |
+        1. ...을 클릭
+        2. ...을 입력
+        3. 오류 발생
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-log
+    attributes:
+      label: 오류 메시지 / 터미널 출력
+      description: 오류 메시지가 있다면 전체를 붙여넣어 주세요.
+      render: shell
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대했던 동작
+      description: 어떻게 동작해야 한다고 생각하셨나요?

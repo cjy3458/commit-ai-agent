@@ -1,4 +1,4 @@
-# ⚡ Commit Analyzer
+# ⚡ Commit AI Agent
 
 AI가 git 커밋과 현재 변경사항을 한국어로 자동 분석해주는 개발자 도구입니다.
 
@@ -15,21 +15,21 @@ AI가 git 커밋과 현재 변경사항을 한국어로 자동 분석해주는 �
 ### 방법 A — npx (설치 없이 바로 실행)
 
 ```bash
-npx commit-analyzer
+npx commit-ai-agent
 ```
 
 ### 방법 B — 전역 설치 후 명령어로 실행
 
 ```bash
-npm install -g commit-analyzer
+npm install -g commit-ai-agent
 commit-analyzer
 ```
 
 ### 방법 C — 직접 클론
 
 ```bash
-git clone https://github.com/cjy3458/commit-analyzer.git
-cd commit-analyzer
+git clone https://github.com/cjy3458/commit-ai-agent.git
+cd commit-ai-agent
 npm install
 npm start
 ```
@@ -81,6 +81,73 @@ PORT=3000
 
 **프로젝트 목록이 안 뜸**
 → `DEV_ROOT`가 git 저장소가 들어 있는 상위 폴더인지 확인하세요.
+
+---
+
+## 버그 제보 & 기능 제안
+
+[GitHub Issues](https://github.com/cjy3458/commit-ai-agent/issues)를 통해 자유롭게 제보해 주세요.
+
+**버그 제보 시 포함하면 좋은 정보:**
+
+- OS / Node.js 버전
+- 실행 방법 (npx / 전역 설치 / 직접 클론)
+- 오류 메시지 전문 (터미널 출력)
+- 재현 방법
+
+**기능 제안 시:**
+
+- 제안 배경 (어떤 문제를 해결하고 싶은지)
+- 원하는 동작 방식
+
+---
+
+## 기여하기
+
+PR은 언제나 환영합니다.
+
+```bash
+# 1. 저장소 포크 후 클론
+git clone https://github.com/cjy3458/commit-ai-agent.git
+cd commit-ai-agent
+
+# 2. 의존성 설치
+npm install
+
+# 3. 환경 설정
+cp .env.example .env
+# .env에 GEMINI_API_KEY, DEV_ROOT 입력
+
+# 4. 개발 서버 실행 (파일 변경 시 자동 재시작)
+npm run dev
+
+# 5. 브랜치 생성 → 작업 → PR
+git checkout -b feat/my-feature
+```
+
+---
+
+## 프로젝트 구조
+
+```
+commit-analyzer/
+├── bin/
+│   └── cli.js          # CLI 진입점 (npx / npm install -g)
+├── src/
+│   ├── server.js       # Express 서버 · API 라우트 · SSE 스트리밍
+│   ├── analyzer.js     # Gemini AI 분석 프롬프트 · 재시도 로직
+│   └── git.js          # simple-git 래퍼 (커밋 조회, status diff)
+├── public/             # 프론트엔드 정적 파일 (HTML · CSS · JS)
+├── .env.example        # 환경변수 예시
+└── package.json
+```
+
+| 파일              | 역할                                                  |
+| ----------------- | ----------------------------------------------------- |
+| `bin/cli.js`      | npx 실행 시 .env 로드, 브라우저 자동 오픈, 서버 시작  |
+| `src/server.js`   | REST API + SSE 엔드포인트, 리포트 저장                |
+| `src/analyzer.js` | Gemini API 호출, 모델 폴백(2.5→2.0→lite), 지수 백오프 |
+| `src/git.js`      | 프로젝트 목록 탐색, 커밋 diff, working status diff    |
 
 ---
 
