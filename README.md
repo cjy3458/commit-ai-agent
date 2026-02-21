@@ -72,8 +72,6 @@ PORT=3000
 
 ![브라우저 인터페이스](https://github.com/user-attachments/assets/51015aad-93bb-4611-8157-12ba570a84d3)
 
-<img width="1507" height="862" alt="image" src="https://github.com/user-attachments/assets/51015aad-93bb-4611-8157-12ba570a84d3" />
-
 ---
 
 ## 문제 해결
