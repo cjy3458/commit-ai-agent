@@ -28,11 +28,13 @@ commit-analyzer
 ### 방법 C — 직접 클론
 
 ```bash
-git clone https://github.com/사용자명/commit-analyzer.git
+git clone https://github.com/cjy3458/commit-analyzer.git
 cd commit-analyzer
 npm install
 npm start
 ```
+
+npm start 대신 Windows 사용자는 `start.bat`를 더블클릭하여 바로 실행할 수 있습니다.
 
 ---
 
@@ -46,11 +48,11 @@ DEV_ROOT=C:/Users/이름/dev
 PORT=3000
 ```
 
-| 변수 | 설명 |
-|------|------|
+| 변수             | 설명                                                                   |
+| ---------------- | ---------------------------------------------------------------------- |
 | `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey)에서 발급 (무료) |
-| `DEV_ROOT` | 분석할 git 프로젝트들이 모여 있는 루트 폴더 |
-| `PORT` | 서버 포트 (기본값 3000) |
+| `DEV_ROOT`       | 분석할 git 프로젝트들이 모여 있는 루트 폴더                            |
+| `PORT`           | 서버 포트 (기본값 3000)                                                |
 
 > Windows 경로는 `\` 대신 `/` 또는 `\\` 사용: `C:/dev`, `D:/projects`
 
@@ -58,12 +60,19 @@ PORT=3000
 
 ## 기능
 
-| 모드 | 설명 |
-|------|------|
-| 📦 최근 커밋 분석 | 마지막 커밋의 의도·근거·코드 리뷰 자동 생성 |
+| 모드                  | 설명                                                    |
+| --------------------- | ------------------------------------------------------- |
+| 📦 최근 커밋 분석     | 마지막 커밋의 의도·근거·코드 리뷰 자동 생성             |
 | 🔍 현재 변경사항 분석 | staged/unstaged/untracked 분석 + 커밋 메시지 3가지 제안 |
 
+- **브라우저 기반 GUI**: 웹 브라우저에서 직관적인 인터페이스로 분석 실행 가능
 - 분석 결과는 실행 위치의 `reports/` 폴더에 Markdown으로 저장됩니다.
+
+## 스크린샷
+
+![브라우저 인터페이스](https://github.com/user-attachments/assets/51015aad-93bb-4611-8157-12ba570a84d3)
+
+<img width="1507" height="862" alt="image" src="https://github.com/user-attachments/assets/51015aad-93bb-4611-8157-12ba570a84d3" />
 
 ---
 
