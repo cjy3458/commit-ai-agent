@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * commit-analyzer CLI 진입점
- * npx commit-analyzer 또는 npm install -g 후 commit-analyzer 명령으로 실행
+ * commit-ai-agent CLI 진입점
+ * npx commit-ai-agent 또는 npm install -g 후 commit-ai-agent 명령으로 실행
  */
 import dotenv from "dotenv";
 import path from "path";
