@@ -5,6 +5,58 @@ let selectedProject = null;
 let isAnalyzing = false;
 let analyzeMode = 'commit'; // 'commit' | 'status'
 
+// ── Aria State Machine ──
+function setAriaState(state, opts = {}) {
+  const robotWrap  = document.getElementById('aria-robot-wrap');
+  const bubbleText = document.getElementById('aria-bubble-text');
+  const typingDots = document.getElementById('aria-typing-dots');
+  const chipDot    = document.getElementById('aria-chip-dot');
+  const chipText   = document.getElementById('aria-chip-text');
+  if (!robotWrap || !bubbleText) return;
+
+  // Base state (strip -commit / -status suffix for robot/chip)
+  const baseState = state.startsWith('ready') ? 'ready' : state;
+
+  // Robot animation class
+  robotWrap.className = `aria-robot-wrap ${baseState}`;
+
+  // Header chip
+  const chipMap = {
+    idle:     { cls: 'idle',     label: 'Aria · 대기 중' },
+    ready:    { cls: 'ready',    label: 'Aria · 준비됨' },
+    thinking: { cls: 'thinking', label: 'Aria · 분석 중...' },
+    done:     { cls: 'done',     label: 'Aria · 완료' },
+    error:    { cls: 'error',    label: 'Aria · 오류' },
+  };
+  const cm = chipMap[baseState] || chipMap.idle;
+  if (chipDot) chipDot.className = `aria-chip-dot ${cm.cls}`;
+  if (chipText) chipText.textContent = cm.label;
+
+  // Bubble messages
+  const p = opts.project ? `<strong>${opts.project}</strong>` : '';
+  const msgMap = {
+    idle:           '어떤 프로젝트의 커밋을 분석해드릴까요?',
+    'ready-commit': `${p} 최근 커밋을 확인했어요. 분석을 시작할까요? 👀`,
+    'ready-status': opts.n > 0
+      ? `${p}에서 변경된 파일 <strong>${opts.n}개</strong>를 발견했어요. 리뷰해드릴까요?`
+      : `${p}에 현재 변경사항이 없어요.`,
+    thinking: '코드를 꼼꼼히 살펴보고 있어요',
+    done:     '분석 완료! 리포트를 확인해보세요. 😊',
+    error:    '앗, 문제가 발생했어요. 다시 시도해볼까요?',
+  };
+  const newMsg = msgMap[state] || msgMap.idle;
+
+  // Fade transition
+  bubbleText.style.opacity = '0';
+  bubbleText.style.transform = 'translateY(4px)';
+  setTimeout(() => {
+    bubbleText.innerHTML = newMsg;
+    if (typingDots) typingDots.style.display = state === 'thinking' ? 'inline-flex' : 'none';
+    bubbleText.style.opacity = '1';
+    bubbleText.style.transform = 'translateY(0)';
+  }, 180);
+}
+
 // ── Boot ──
 document.addEventListener('DOMContentLoaded', () => {
   init();
@@ -29,6 +81,8 @@ async function init() {
   document.getElementById('status-diff-toggle-btn').addEventListener('click', () => {
     togglePre('status-diff-content', 'status-diff-toggle-btn');
   });
+
+  setAriaState('idle');
 }
 
 // ── Config check ──
@@ -106,8 +160,10 @@ async function fetchCommitPreview() {
     if (error) throw new Error(error);
     renderCommitCard(commit);
     document.getElementById('commit-card').style.display = 'block';
+    setAriaState('ready-commit', { project: selectedProject });
   } catch (e) {
     console.warn('commit preview failed:', e.message);
+    setAriaState('ready-commit', { project: selectedProject });
   }
 }
 
@@ -119,11 +175,14 @@ async function fetchStatusPreview() {
     if (status) {
       renderStatusCard(status);
       document.getElementById('status-card').style.display = 'block';
+      setAriaState('ready-status', { project: selectedProject, n: status.totalFiles });
     } else {
       document.getElementById('selected-hint').textContent = `${selectedProject} — 변경사항 없음`;
+      setAriaState('ready-status', { project: selectedProject, n: 0 });
     }
   } catch (e) {
     console.warn('status preview failed:', e.message);
+    setAriaState('ready-status', { project: selectedProject, n: 0 });
   }
 }
 
@@ -176,6 +235,9 @@ function switchMode(mode) {
   document.getElementById('status-card').style.display = 'none';
   document.getElementById('result-card').style.display = 'none';
 
+  const btnText = document.getElementById('analyze-btn-text');
+  if (btnText) btnText.textContent = mode === 'commit' ? 'Aria에게 분석 요청' : 'Aria에게 리뷰 요청';
+
   if (!selectedProject) return;
   if (mode === 'commit') fetchCommitPreview();
   else fetchStatusPreview();
@@ -202,7 +264,8 @@ async function startAnalysis(endpoint) {
   analysisBody.innerHTML = '';
   reportSaved.textContent = '';
   document.getElementById('copy-btn').style.display = 'none'; // 분석 시작 시 숨김
-  setStatus('loading', '분석 준비 중...');
+  setStatus('loading', 'Aria가 코드를 살펴보고 있어요...');
+  setAriaState('thinking');
   analyzeBtn.disabled = true;
   btnIcon.textContent = '⏳';
 
@@ -252,19 +315,22 @@ async function startAnalysis(endpoint) {
             }
           } else if (data.type === 'done') {
             setStatus('done', '✅ 분석 완료!');
+            setAriaState('done');
             document.getElementById('copy-btn').style.display = 'inline-flex'; // 완료 시에만 표시
           } else if (data.type === 'error') {
             setStatus('error', `오류: ${data.message}`);
+            setAriaState('error');
           }
         } catch {}
       }
     }
   } catch (err) {
     setStatus('error', `네트워크 오류: ${err.message}`);
+    setAriaState('error');
   } finally {
     isAnalyzing = false;
     analyzeBtn.disabled = false;
-    btnIcon.textContent = '🔍';
+    btnIcon.textContent = '🤖';
     document.getElementById('copy-btn')._text = fullText;
     resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }

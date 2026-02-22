@@ -37,6 +37,10 @@
             리포트
           </button>
         </nav>
+        <div class="aria-chip" id="aria-chip">
+          <span class="aria-chip-dot" id="aria-chip-dot"></span>
+          <span id="aria-chip-text">Aria · 대기 중</span>
+        </div>
       </div>
     </header>
 
@@ -44,6 +48,59 @@
     <main class="main">
       <!-- ── Tab: Analyze ── -->
       <section class="tab-content active" id="tab-analyze">
+
+        <!-- ── Aria Hero ── -->
+        <div class="aria-hero">
+          <div class="aria-robot-wrap idle" id="aria-robot-wrap">
+            <svg class="aria-robot" viewBox="0 0 90 115" width="90" height="115" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="rg-head" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#6366f1"/>
+                  <stop offset="100%" stop-color="#22d3ee"/>
+                </linearGradient>
+                <linearGradient id="rg-body" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#4f46e5"/>
+                  <stop offset="100%" stop-color="#0e7490"/>
+                </linearGradient>
+              </defs>
+              <!-- Antenna -->
+              <line x1="45" y1="7" x2="45" y2="20" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round"/>
+              <circle class="aria-antenna-dot" cx="45" cy="5" r="5" fill="#818cf8"/>
+              <!-- Ears -->
+              <rect x="1" y="34" width="9" height="18" rx="4.5" fill="#4f46e5"/>
+              <rect x="80" y="34" width="9" height="18" rx="4.5" fill="#4f46e5"/>
+              <!-- Head -->
+              <rect x="9" y="18" width="72" height="62" rx="20" fill="url(#rg-head)"/>
+              <!-- Eyes white -->
+              <circle cx="30" cy="48" r="13" fill="white" opacity="0.92"/>
+              <circle cx="60" cy="48" r="13" fill="white" opacity="0.92"/>
+              <!-- Pupils -->
+              <circle cx="32" cy="49" r="7.5" fill="#1e1b4b"/>
+              <circle cx="62" cy="49" r="7.5" fill="#1e1b4b"/>
+              <!-- Eye shine -->
+              <circle cx="35" cy="45" r="2.5" fill="white"/>
+              <circle cx="65" cy="45" r="2.5" fill="white"/>
+              <!-- Smile -->
+              <path d="M 32 63 Q 45 73 58 63" stroke="white" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+              <!-- Body -->
+              <rect x="20" y="84" width="50" height="28" rx="12" fill="url(#rg-body)"/>
+              <!-- Body buttons -->
+              <circle cx="34" cy="98" r="5" fill="rgba(255,255,255,0.35)"/>
+              <circle cx="45" cy="98" r="5" fill="rgba(255,255,255,0.35)"/>
+              <circle cx="56" cy="98" r="5" fill="rgba(255,255,255,0.35)"/>
+            </svg>
+          </div>
+          <div class="aria-bubble-wrap">
+            <div class="aria-bubble">
+              <span class="aria-bubble-text" id="aria-bubble-text">어떤 프로젝트의 커밋을 분석해드릴까요?</span>
+              <span class="aria-typing-dots" id="aria-typing-dots" style="display:none">
+                <span></span><span></span><span></span>
+              </span>
+            </div>
+            <div class="aria-name-badge">Aria</div>
+          </div>
+        </div>
+
         <!-- API Key Warning -->
         <div class="alert alert-warn" id="api-key-warn" style="display: none">
           ⚠️ <strong>.env</strong> 파일에 <code>GEMINI_API_KEY</code>가 설정되지
@@ -80,7 +137,7 @@
               >프로젝트를 선택해 주세요</span
             >
             <button class="btn-primary" id="analyze-btn" disabled>
-              <span class="btn-icon">🔍</span> 커밋 분석하기
+              <span class="btn-icon">🤖</span> <span id="analyze-btn-text">Aria에게 분석 요청</span>
             </button>
           </div>
         </div>
@@ -118,7 +175,7 @@
         <!-- Analysis Output -->
         <div class="card result-card" id="result-card" style="display: none">
           <div class="result-header">
-            <h2 class="card-title">📝 AI 분석 결과</h2>
+            <h2 class="card-title">🤖 Aria의 분석 리포트</h2>
             <div class="result-actions">
               <button class="btn-ghost" id="copy-btn" style="display: none">
                 📋 복사
