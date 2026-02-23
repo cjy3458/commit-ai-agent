@@ -12,6 +12,7 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 const { devRoot: DEV_ROOT, source: DEV_ROOT_SOURCE } = resolveDevRoot();
+const BAD_REQUEST_PREFIX = "[BAD_REQUEST]";
 
 // npx/global install 시: COMMIT_ANALYZER_ROOT = bin/cli.js가 설정한 패키지 루트
 // 로컬 dev 시: __dirname/../ 사용
@@ -28,6 +29,47 @@ if (!fs.existsSync(REPORTS_DIR)) {
 
 app.use(express.json());
 app.use(express.static(path.join(PACKAGE_ROOT, "public")));
+
+function createBadRequestError(message) {
+  return new Error(`${BAD_REQUEST_PREFIX} ${message}`);
+}
+
+function isBadRequestError(err) {
+  return (
+    typeof err?.message === "string" &&
+    err.message.startsWith(BAD_REQUEST_PREFIX)
+  );
+}
+
+function resolveProjectPath(projectName) {
+  if (!projectName || typeof projectName !== "string") {
+    throw createBadRequestError("프로젝트명이 필요합니다.");
+  }
+
+  const trimmedName = projectName.trim();
+  if (!trimmedName) {
+    throw createBadRequestError("프로젝트명이 비어 있습니다.");
+  }
+
+  const projectPath = path.resolve(DEV_ROOT, trimmedName);
+  const relativePath = path.relative(DEV_ROOT, projectPath);
+  const isOutsideRoot =
+    relativePath.startsWith("..") || path.isAbsolute(relativePath);
+
+  if (isOutsideRoot) {
+    throw createBadRequestError("유효하지 않은 프로젝트 경로입니다.");
+  }
+
+  if (!fs.existsSync(projectPath) || !fs.statSync(projectPath).isDirectory()) {
+    throw createBadRequestError("프로젝트를 찾을 수 없습니다.");
+  }
+
+  if (!fs.existsSync(path.join(projectPath, ".git"))) {
+    throw createBadRequestError("Git 저장소가 아닌 프로젝트입니다.");
+  }
+
+  return projectPath;
+}
 
 // ──────────────────────────────────────────────
 //  PWA 아이콘 (SVG를 PNG MIME으로 서빙)
@@ -71,10 +113,15 @@ app.get("/api/projects", async (req, res) => {
 // ──────────────────────────────────────────────
 app.get("/api/projects/:name/commit", async (req, res) => {
   try {
-    const projectPath = path.join(DEV_ROOT, req.params.name);
+    const projectPath = resolveProjectPath(req.params.name);
     const commit = await getLatestCommit(projectPath);
     res.json({ commit });
   } catch (err) {
+    if (isBadRequestError(err)) {
+      return res
+        .status(400)
+        .json({ error: err.message.replace(`${BAD_REQUEST_PREFIX} `, "") });
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -84,10 +131,15 @@ app.get("/api/projects/:name/commit", async (req, res) => {
 // ──────────────────────────────────────────────
 app.get("/api/projects/:name/status", async (req, res) => {
   try {
-    const projectPath = path.join(DEV_ROOT, req.params.name);
+    const projectPath = resolveProjectPath(req.params.name);
     const status = await getWorkingStatus(projectPath);
     res.json({ status });
   } catch (err) {
+    if (isBadRequestError(err)) {
+      return res
+        .status(400)
+        .json({ error: err.message.replace(`${BAD_REQUEST_PREFIX} `, "") });
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -98,6 +150,7 @@ app.get("/api/projects/:name/status", async (req, res) => {
 app.post("/api/analyze", async (req, res) => {
   const { projectName } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
+  let projectPath;
 
   if (!apiKey || apiKey === "your_gemini_api_key_here") {
     return res
@@ -105,8 +158,15 @@ app.post("/api/analyze", async (req, res) => {
       .json({ error: "GEMINI_API_KEY가 .env 파일에 설정되지 않았습니다." });
   }
 
-  if (!projectName) {
-    return res.status(400).json({ error: "프로젝트명이 필요합니다." });
+  try {
+    projectPath = resolveProjectPath(projectName);
+  } catch (err) {
+    if (isBadRequestError(err)) {
+      return res
+        .status(400)
+        .json({ error: err.message.replace(`${BAD_REQUEST_PREFIX} `, "") });
+    }
+    return res.status(500).json({ error: err.message });
   }
 
   // Server-Sent Events 설정
@@ -121,7 +181,6 @@ app.post("/api/analyze", async (req, res) => {
 
   try {
     send({ type: "status", message: "커밋 정보를 가져오는 중..." });
-    const projectPath = path.join(DEV_ROOT, projectName);
     const commit = await getLatestCommit(projectPath);
 
     send({ type: "commit", commit });
@@ -154,6 +213,7 @@ app.post("/api/analyze", async (req, res) => {
 app.post("/api/analyze-status", async (req, res) => {
   const { projectName } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
+  let projectPath;
 
   if (!apiKey || apiKey === "your_gemini_api_key_here") {
     return res
@@ -161,8 +221,15 @@ app.post("/api/analyze-status", async (req, res) => {
       .json({ error: "GEMINI_API_KEY가 .env 파일에 설정되지 않았습니다." });
   }
 
-  if (!projectName) {
-    return res.status(400).json({ error: "프로젝트명이 필요합니다." });
+  try {
+    projectPath = resolveProjectPath(projectName);
+  } catch (err) {
+    if (isBadRequestError(err)) {
+      return res
+        .status(400)
+        .json({ error: err.message.replace(`${BAD_REQUEST_PREFIX} `, "") });
+    }
+    return res.status(500).json({ error: err.message });
   }
 
   res.setHeader("Content-Type", "text/event-stream");
@@ -176,7 +243,6 @@ app.post("/api/analyze-status", async (req, res) => {
 
   try {
     send({ type: "status", message: "변경사항을 가져오는 중..." });
-    const projectPath = path.join(DEV_ROOT, projectName);
     const workingStatus = await getWorkingStatus(projectPath);
 
     if (!workingStatus) {

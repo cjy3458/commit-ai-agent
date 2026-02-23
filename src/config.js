@@ -1,14 +1,15 @@
 import fs from "fs";
+import path from "path";
 
 export function resolveDevRoot() {
   const fromEnv = process.env.DEV_ROOT?.trim();
   if (fromEnv) {
-    const devRoot = fromEnv;
+    const devRoot = path.resolve(fromEnv);
     validateDirectory(devRoot, "DEV_ROOT");
     return { devRoot, source: "env" };
   }
 
-  const devRoot = process.cwd();
+  const devRoot = path.resolve(process.cwd());
   validateDirectory(devRoot, "cwd");
   return { devRoot, source: "cwd" };
 }
