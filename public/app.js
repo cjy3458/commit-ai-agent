@@ -116,26 +116,27 @@ async function checkConfig() {
 
 // ── Single Project Mode ──
 async function enterSingleProjectMode() {
-  // 프로젝트 선택 UI 숨김
+  // 프로젝트 선택 UI만 숨김 (모드 토글은 유지)
   const header = document.querySelector(".selector-card .card-header");
-  const modeToggle = document.querySelector(".mode-toggle");
   const projectGrid = document.getElementById("project-grid");
   const selectedHint = document.getElementById("selected-hint");
   if (header) header.style.display = "none";
-  if (modeToggle) modeToggle.style.display = "none";
   if (projectGrid) projectGrid.style.display = "none";
   if (selectedHint) selectedHint.style.display = "none";
 
   // 현재 디렉토리를 프로젝트로 자동 선택
   selectedProject = "__self__";
-  analyzeMode = "status";
 
   document.getElementById("analyze-btn").disabled = false;
   const btnText = document.getElementById("analyze-btn-text");
-  if (btnText) btnText.textContent = "Hanni에게 리뷰 요청";
+  if (btnText) btnText.textContent = "Hanni에게 분석 요청";
 
-  // 변경사항 미리 로드
-  await fetchStatusPreview();
+  // 현재 모드에 따라 미리 로드
+  if (analyzeMode === "commit") {
+    await fetchCommitPreview();
+  } else {
+    await fetchStatusPreview();
+  }
 }
 
 // ── Projects ──
