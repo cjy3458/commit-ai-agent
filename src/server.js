@@ -10,7 +10,7 @@ import { resolveDevRoot } from "./config.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 50324;
 const { devRoot: DEV_ROOT, source: DEV_ROOT_SOURCE } = resolveDevRoot();
 const BAD_REQUEST_PREFIX = "[BAD_REQUEST]";
 
@@ -49,6 +49,14 @@ function resolveProjectPath(projectName) {
   const trimmedName = projectName.trim();
   if (!trimmedName) {
     throw createBadRequestError("프로젝트명이 비어 있습니다.");
+  }
+
+  // Single-project mode: "__self__" = DEV_ROOT 자체 (DEV_ROOT가 git 저장소인 경우)
+  if (trimmedName === "__self__") {
+    if (!fs.existsSync(path.join(DEV_ROOT, ".git"))) {
+      throw createBadRequestError("현재 디렉토리가 Git 저장소가 아닙니다.");
+    }
+    return DEV_ROOT;
   }
 
   const projectPath = path.resolve(DEV_ROOT, trimmedName);
@@ -93,7 +101,15 @@ app.get("/api/config", (req, res) => {
     process.env.GEMINI_API_KEY &&
     process.env.GEMINI_API_KEY !== "your_gemini_api_key_here"
   );
-  res.json({ hasKey, devRoot: DEV_ROOT, devRootSource: DEV_ROOT_SOURCE });
+  const isSingleProject =
+    DEV_ROOT_SOURCE === "cwd" && fs.existsSync(path.join(DEV_ROOT, ".git"));
+  res.json({
+    hasKey,
+    devRoot: DEV_ROOT,
+    devRootSource: DEV_ROOT_SOURCE,
+    isSingleProject,
+    singleProjectName: isSingleProject ? path.basename(DEV_ROOT) : null,
+  });
 });
 
 // ──────────────────────────────────────────────
@@ -186,16 +202,18 @@ app.post("/api/analyze", async (req, res) => {
     send({ type: "commit", commit });
     send({ type: "status", message: "AI 분석 중... (30초~1분 소요)" });
 
-    const analysis = await analyzeCommit(commit, projectName, apiKey);
+    const displayName =
+      projectName === "__self__" ? path.basename(DEV_ROOT) : projectName;
+    const analysis = await analyzeCommit(commit, displayName, apiKey);
 
     // 리포트 저장
     const timestamp = new Date()
       .toISOString()
       .replace(/[:.]/g, "-")
       .slice(0, 19);
-    const reportFilename = `${projectName}-${timestamp}.md`;
+    const reportFilename = `${displayName}-${timestamp}.md`;
     const reportPath = path.join(REPORTS_DIR, reportFilename);
-    const fullReport = buildMarkdownReport(projectName, commit, analysis);
+    const fullReport = buildMarkdownReport(displayName, commit, analysis);
     fs.writeFileSync(reportPath, fullReport, "utf-8");
 
     send({ type: "analysis", analysis, reportFilename });
@@ -257,9 +275,11 @@ app.post("/api/analyze-status", async (req, res) => {
     send({ type: "working-status", workingStatus });
     send({ type: "status", message: "AI 분석 중... (30초~1분 소요)" });
 
+    const displayName =
+      projectName === "__self__" ? path.basename(DEV_ROOT) : projectName;
     const analysis = await analyzeWorkingStatus(
       workingStatus,
-      projectName,
+      displayName,
       apiKey,
     );
 
@@ -268,9 +288,9 @@ app.post("/api/analyze-status", async (req, res) => {
       .toISOString()
       .replace(/[:.]/g, "-")
       .slice(0, 19);
-    const reportFilename = `${projectName}-status-${timestamp}.md`;
+    const reportFilename = `${displayName}-status-${timestamp}.md`;
     const reportPath = path.join(REPORTS_DIR, reportFilename);
-    const fullReport = buildStatusReport(projectName, workingStatus, analysis);
+    const fullReport = buildStatusReport(displayName, workingStatus, analysis);
     fs.writeFileSync(reportPath, fullReport, "utf-8");
 
     send({ type: "analysis", analysis, reportFilename });

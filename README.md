@@ -14,7 +14,7 @@ AI가 git 커밋과 현재 변경사항을 한국어로 자동 분석해주는 �
 
 ### 방법 A — npx (설치 없이 바로 실행)
 
-- 프로젝트가 모여있는 디렉토리에서 아래 명령어 실행
+- 프로젝트가 모여있는 디렉토리 or 프로젝트 루트에서 명령어 실행
 - 해당 디렉토리에서 .env 파일 생성(.env.example 참고)
 
 ```bash
@@ -24,7 +24,7 @@ npx commit-ai-agent
 ### 방법 B — 전역 설치 후 명령어로 실행
 
 - 전역으로 설치하면 어느 위치에서든 `commit-ai-agent` 명령어로 실행 가능
-- 프로젝트가 모여있는 디렉토리에서 명령어 실행
+- 프로젝트가 모여있는 디렉토리 or 프로젝트 루트에서 명령어 실행
 - 해당 디렉토리에서 .env 파일 생성(.env.example 참고)
 
 ```bash
@@ -33,6 +33,8 @@ commit-ai-agent
 ```
 
 ### 방법 C — 직접 클론
+
+프로젝트가 모여있는 디렉토리에 클론한 후, 해당 디렉토리에서 명령어 실행
 
 ```bash
 git clone https://github.com/cjy3458/commit-ai-agent.git
@@ -50,17 +52,16 @@ npm start 대신 Windows 사용자는 `start.bat`파일을 더블클릭하여 �
 처음 실행 전, 실행할 디렉토리에 `.env` 파일을 만드세요.
 
 ```env
-GEMINI_API_KEY=여기에_API_키_입력
-PORT=3000
-# 선택 사항(미설정 시 현재 실행 디렉토리를 자동 사용)
-# DEV_ROOT=C:/Users/projects
+GEMINI_API_KEY=여기에_API_키_입력 => 필수값
+PORT=원하는 PORT 입력 (예: 3000, 50324 등) => 선택 사항(미설정 시 기본값 50324)
+DEV_ROOT=C:/Users/projects => 선택 사항(미설정 시 현재 실행 디렉토리를 자동 사용)
 ```
 
-| 변수             | 설명                                                                   |
-| ---------------- | ---------------------------------------------------------------------- |
-| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey)에서 발급 (무료) |
+| 변수             | 설명                                                                    |
+| ---------------- | ----------------------------------------------------------------------- |
+| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey)에서 발급 (무료)  |
 | `DEV_ROOT`       | (선택) 분석할 git 프로젝트 루트 폴더. 미설정 시 실행 디렉토리 자동 사용 |
-| `PORT`           | 서버 포트 (기본값 3000)                                                |
+| `PORT`           | (선택) 서버 포트 (기본값 50324)                                         |
 
 > Windows 경로는 `\` 대신 `/` 또는 `\\` 사용: `C:/dev`, `D:/projects`
 
@@ -89,6 +90,9 @@ PORT=3000
 
 **프로젝트 목록이 안 뜸**
 → 기본값은 실행 디렉토리입니다. 필요 시 `DEV_ROOT`를 git 저장소가 모인 상위 폴더로 지정하세요.
+
+**`[DEP0190] DeprecationWarning` 경고 (Node.js 22+)**
+→ `shell: true` 옵션과 args 배열을 함께 전달할 때 Node.js 22 이상에서 발생하는 보안 경고입니다. v1.0.7 이상으로 업데이트하면 해결됩니다.
 
 ---
 

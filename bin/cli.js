@@ -27,13 +27,12 @@ console.log("");
 setTimeout(async () => {
   const url = `http://localhost:${PORT}`;
   const platform = process.platform;
-  const cmd =
-    platform === "win32"
-      ? "start"
-      : platform === "darwin"
-        ? "open"
-        : "xdg-open";
-  spawn(cmd, [url], { shell: true, stdio: "ignore", detached: true });
+  if (platform === "win32") {
+    spawn("cmd", ["/c", "start", url], { stdio: "ignore", detached: true });
+  } else {
+    const cmd = platform === "darwin" ? "open" : "xdg-open";
+    spawn(cmd, [url], { stdio: "ignore", detached: true });
+  }
 }, 1200);
 
 // 서버 시작
