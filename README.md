@@ -51,14 +51,15 @@ npm start 대신 Windows 사용자는 `start.bat`파일을 더블클릭하여 �
 
 ```env
 GEMINI_API_KEY=여기에_API_키_입력
-DEV_ROOT=C:/Users/projects => 절대경로 입력
 PORT=3000
+# 선택 사항(미설정 시 현재 실행 디렉토리를 자동 사용)
+# DEV_ROOT=C:/Users/projects
 ```
 
 | 변수             | 설명                                                                   |
 | ---------------- | ---------------------------------------------------------------------- |
 | `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey)에서 발급 (무료) |
-| `DEV_ROOT`       | 분석할 git 프로젝트들이 모여 있는 루트 폴더                            |
+| `DEV_ROOT`       | (선택) 분석할 git 프로젝트 루트 폴더. 미설정 시 실행 디렉토리 자동 사용 |
 | `PORT`           | 서버 포트 (기본값 3000)                                                |
 
 > Windows 경로는 `\` 대신 `/` 또는 `\\` 사용: `C:/dev`, `D:/projects`
@@ -87,7 +88,7 @@ PORT=3000
 → Gemini 무료 티어 한도 도달. 잠시 후 재시도하거나 [유료 플랜](https://ai.google.dev)으로 업그레이드하세요.
 
 **프로젝트 목록이 안 뜸**
-→ `DEV_ROOT`가 git 저장소가 들어 있는 상위 폴더인지 확인하세요.
+→ 기본값은 실행 디렉토리입니다. 필요 시 `DEV_ROOT`를 git 저장소가 모인 상위 폴더로 지정하세요.
 
 ---
 
@@ -123,7 +124,7 @@ npm install
 
 # 3. 환경 설정
 cp .env.example .env
-# .env에 GEMINI_API_KEY, DEV_ROOT 입력
+# .env에 GEMINI_API_KEY 입력 (DEV_ROOT는 필요할 때만 설정)
 
 # 4. 개발 서버 실행 (파일 변경 시 자동 재시작)
 npm run dev
