@@ -5,12 +5,13 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import { listGitProjects, getLatestCommit, getWorkingStatus } from "./git.js";
 import { analyzeCommit, analyzeWorkingStatus } from "./analyzer.js";
+import { resolveDevRoot } from "./config.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-const DEV_ROOT = process.env.DEV_ROOT;
+const { devRoot: DEV_ROOT, source: DEV_ROOT_SOURCE } = resolveDevRoot();
 
 // npx/global install 시: COMMIT_ANALYZER_ROOT = bin/cli.js가 설정한 패키지 루트
 // 로컬 dev 시: __dirname/../ 사용
@@ -50,7 +51,7 @@ app.get("/api/config", (req, res) => {
     process.env.GEMINI_API_KEY &&
     process.env.GEMINI_API_KEY !== "your_gemini_api_key_here"
   );
-  res.json({ hasKey, devRoot: DEV_ROOT });
+  res.json({ hasKey, devRoot: DEV_ROOT, devRootSource: DEV_ROOT_SOURCE });
 });
 
 // ──────────────────────────────────────────────
@@ -293,5 +294,6 @@ ${analysis}
 app.listen(PORT, () => {
   console.log(`\n🚀 Commit Ai Agent 실행 중`);
   console.log(`   브라우저: http://localhost:${PORT}`);
-  console.log(`   분석 대상: ${DEV_ROOT}\n`);
+  console.log(`   분석 대상: ${DEV_ROOT}`);
+  console.log(`   DEV_ROOT source: ${DEV_ROOT_SOURCE}\n`);
 });
