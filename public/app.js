@@ -100,9 +100,6 @@ async function init() {
   document
     .getElementById("refresh-hooks")
     .addEventListener("click", loadHookStatus);
-  document
-    .getElementById("hook-install-all-btn")
-    .addEventListener("click", installAllHooks);
 }
 
 // ── Config check ──
@@ -587,29 +584,6 @@ async function handleHookAction(action, projectName, btn) {
     btn.disabled = false;
     btn.textContent = original;
     alert(`오류: ${err.message}`);
-  }
-}
-
-async function installAllHooks() {
-  const btn = document.getElementById("hook-install-all-btn");
-  btn.disabled = true;
-  btn.textContent = "설치 중...";
-  try {
-    const res = await fetch("/api/hooks/status");
-    const { projects } = await res.json();
-    for (const p of projects) {
-      await fetch("/api/hooks/install", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectName: p.name }),
-      });
-    }
-    await loadHookStatus();
-  } catch (err) {
-    alert(`오류: ${err.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "모든 프로젝트에 설치";
   }
 }
 

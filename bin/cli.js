@@ -32,30 +32,7 @@ if (subCmd === "hook") {
     "../src/hooks/installer.js"
   );
 
-  // --project <path> 플래그 파싱
-  const projectFlagIdx = subArgs.indexOf("--project");
-  const explicitProject =
-    projectFlagIdx !== -1 ? subArgs[projectFlagIdx + 1] : null;
-
-  // --all 플래그
-  const isAll = subArgs.includes("--all");
-
-  async function resolveTargets() {
-    if (explicitProject) return [path.resolve(explicitProject)];
-    if (isAll) {
-      const fs = await import("fs");
-      const devRoot = process.env.DEV_ROOT
-        ? path.resolve(process.env.DEV_ROOT)
-        : process.cwd();
-      const entries = fs.default.readdirSync(devRoot, { withFileTypes: true });
-      return entries
-        .filter(
-          (e) =>
-            e.isDirectory() &&
-            fs.default.existsSync(path.join(devRoot, e.name, ".git"))
-        )
-        .map((e) => path.join(devRoot, e.name));
-    }
+  function resolveTargets() {
     return [process.cwd()];
   }
 
@@ -125,9 +102,6 @@ if (subCmd === "hook") {
   console.log("");
   console.log("  사용법:");
   console.log("    commit-ai-agent hook install   # 현재 디렉토리에 훅 설치");
-  console.log(
-    "    commit-ai-agent hook install --all   # DEV_ROOT 모든 프로젝트"
-  );
   console.log("    commit-ai-agent hook remove    # 훅 제거");
   console.log("    commit-ai-agent hook status    # 상태 확인");
   console.log("");

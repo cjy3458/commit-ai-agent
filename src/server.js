@@ -7,7 +7,6 @@ import { listGitProjects, getLatestCommit, getWorkingStatus } from "./git.js";
 import { analyzeCommit, analyzeWorkingStatus } from "./analyzer.js";
 import { resolveDevRoot } from "./config.js";
 import { installHooks, removeHooks, getHookStatus } from "./hooks/installer.js";
-import { loadPendingJobs, deleteQueueFile } from "./hooks/queue.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -93,7 +92,7 @@ async function processNextQueueItem() {
 
   const job = analysisQueue.shift();
   try {
-    const { projectPath, projectName, queueFile } = job;
+    const { projectPath, projectName } = job;
     const commit = await getLatestCommit(projectPath);
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey && apiKey !== "your_gemini_api_key_here") {
@@ -107,13 +106,10 @@ async function processNextQueueItem() {
       fs.writeFileSync(path.join(REPORTS_DIR, reportFilename), fullReport, "utf-8");
       console.log(`[auto] 분석 완료: ${projectName} (${commit.shortHash})`);
     }
-    // 큐 파일 정리
-    if (queueFile) deleteQueueFile(queueFile);
   } catch (err) {
     console.error(`[auto] 분석 실패: ${err.message}`);
   } finally {
     isProcessingQueue = false;
-    // 남은 항목 처리
     if (analysisQueue.length > 0) {
       setTimeout(processNextQueueItem, 1000);
     }
@@ -214,7 +210,7 @@ app.post("/api/hooks/post-commit-notify", (req, res) => {
   }
 
   const projectName = isSelf ? path.basename(DEV_ROOT) : path.basename(projectPath);
-  analysisQueue.push({ projectPath: path.resolve(projectPath), projectName, queueFile: null });
+  analysisQueue.push({ projectPath: path.resolve(projectPath), projectName });
 
   // 즉시 응답 후 백그라운드에서 처리
   res.json({ queued: true, jobId: Date.now() });
@@ -512,16 +508,4 @@ app.listen(PORT, () => {
   console.log(`   분석 대상: ${DEV_ROOT}`);
   console.log(`   DEV_ROOT source: ${DEV_ROOT_SOURCE}\n`);
 
-  // 서버 시작 시 pending 큐 처리 (서버가 꺼진 동안 쌓인 post-commit 이벤트)
-  setTimeout(() => {
-    const pendingJobs = loadPendingJobs(DEV_ROOT);
-    if (pendingJobs.length > 0) {
-      console.log(`[queue] pending 분석 ${pendingJobs.length}개 발견, 처리 시작...`);
-      for (const job of pendingJobs) {
-        const projectName = path.basename(job.projectPath);
-        analysisQueue.push({ projectPath: job.projectPath, projectName, queueFile: job.queueFile });
-      }
-      processNextQueueItem();
-    }
-  }, 3000); // 서버 완전 시작 후 3초 대기
 });

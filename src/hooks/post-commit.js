@@ -6,7 +6,6 @@
  * 사용: node post-commit.js <projectPath>
  */
 import http from 'http';
-import { saveToQueue } from './queue.js';
 
 const rawPath = process.argv[2] || process.cwd();
 const projectPath = rawPath.replace(/^\/([a-z])\//i, '$1:/');
@@ -64,10 +63,8 @@ async function main() {
     const running = await checkServerRunning();
     if (running) {
       await notifyServer(projectPath);
-    } else {
-      // 서버가 꺼져 있으면 큐에 저장, 다음 서버 시작 시 처리
-      saveToQueue(projectPath, 'post-commit');
     }
+    // 서버가 꺼져 있으면 조용히 종료 (git 커밋을 방해하지 않음)
   } catch {
     // Git 커밋을 절대 방해하지 않음
   }
