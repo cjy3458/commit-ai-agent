@@ -21,7 +21,6 @@
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <!-- ── Header ── -->
     <header class="header">
       <div class="header-inner">
         <div class="logo">
@@ -273,11 +272,13 @@
         <div class="card">
           <div class="card-header">
             <h2 class="card-title">🪝 Git Hook 관리</h2>
-            <button class="btn-ghost" id="refresh-hooks" title="새로고침">↻</button>
+            <button class="btn-ghost" id="refresh-hooks" title="새로고침">
+              ↻
+            </button>
           </div>
           <p class="hook-desc">
-            훅을 설치하면 <strong>커밋할 때마다 자동으로 AI 분석</strong>이 실행되고,
-            <strong>push 전에 secret 유출을 자동 차단</strong>합니다.
+            훅을 설치하면 <strong>커밋할 때마다 자동으로 AI 분석</strong>이
+            실행되고, <strong>push 전에 secret 유출을 자동 차단</strong>합니다.
           </p>
 
           <div class="hook-section">
@@ -285,7 +286,10 @@
               <span class="hook-icon">⚡</span>
               post-commit — 자동 커밋 분석
             </div>
-            <p class="hook-section-desc">커밋 직후 Gemini AI가 백그라운드에서 분석 리포트를 자동 생성합니다.</p>
+            <p class="hook-section-desc">
+              커밋 직후 Gemini AI가 백그라운드에서 분석 리포트를 자동
+              생성합니다.
+            </p>
           </div>
 
           <div class="hook-section">
@@ -293,13 +297,15 @@
               <span class="hook-icon">⛔</span>
               pre-push — Secret 유출 탐지
             </div>
-            <p class="hook-section-desc">push 전에 API 키, 비밀번호, private key 등의 유출을 탐지하고 차단합니다.</p>
+            <p class="hook-section-desc">
+              push 전에 API 키, 비밀번호, private key 등의 유출을 탐지하고
+              차단합니다.
+            </p>
           </div>
 
           <div id="hook-projects-list" class="hook-projects-list">
             <p class="empty-state">불러오는 중...</p>
           </div>
-
         </div>
 
         <div class="card hook-cli-card">
