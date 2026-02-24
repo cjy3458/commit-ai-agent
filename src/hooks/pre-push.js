@@ -13,7 +13,9 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 // 프로젝트 .env 로드 (GEMINI_API_KEY, PORT 등)
-const projectPath = process.argv[2] || process.cwd();
+// Git Bash에서 $(pwd)는 /c/dev/... 형식으로 넘어옴 → Windows 경로로 변환
+const rawPath = process.argv[2] || process.cwd();
+const projectPath = rawPath.replace(/^\/([a-z])\//i, '$1:/');
 try {
   const envPath = path.join(projectPath, '.env');
   if (fs.existsSync(envPath)) {

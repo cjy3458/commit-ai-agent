@@ -8,7 +8,8 @@
 import http from 'http';
 import { saveToQueue } from './queue.js';
 
-const projectPath = process.argv[2] || process.cwd();
+const rawPath = process.argv[2] || process.cwd();
+const projectPath = rawPath.replace(/^\/([a-z])\//i, '$1:/');
 const PORT = process.env.PORT || 3000;
 
 /**
