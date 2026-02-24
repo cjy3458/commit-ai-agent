@@ -57,6 +57,12 @@ const SECRET_PATTERNS = [
   { name: 'Generic Token Assignment', pattern: /(?:access[_-]?token|auth[_-]?token)\s*[:=]\s*['"]?[A-Za-z0-9_\-]{20,}/gi, severity: 'medium' },
 ];
 
+// 알려진 공개 상수 — secret이 아님 (git 내부 SHA 등)
+const SKIP_VALUES = new Set([
+  '0000000000000000000000000000000000000000', // git null SHA (새 브랜치)
+  '4b825dc642cb6eb9a060e54bf8d69288fbee4904', // git 빈 트리 SHA
+]);
+
 // 스캔 제외 파일/경로
 const SKIP_FILENAMES = new Set([
   '.gitignore', '.env.example', '.env.sample', '.env.template', '.env.test',
@@ -111,6 +117,9 @@ function scanContent(content, filePath) {
       if (/^(?:\/\/|#|\*|<!--)/.test(lineContent)) continue;
 
       const val = match[0];
+
+      // 알려진 공개 상수 스킵
+      if (SKIP_VALUES.has(val)) continue;
       const masked =
         val.length > 8
           ? val.slice(0, 4) + '****' + val.slice(-4)
