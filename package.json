@@ -1,6 +1,6 @@
 {
   "name": "commit-ai-agent",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "AI-powered git commit & working status analyzer with web UI",
   "type": "module",
   "main": "src/server.js",

@@ -36,6 +36,9 @@
           <button class="nav-btn" data-tab="reports" id="btn-reports">
             리포트
           </button>
+          <button class="nav-btn" data-tab="hooks" id="btn-hooks">
+            훅 관리
+          </button>
         </nav>
         <div class="aria-chip" id="aria-chip">
           <span class="aria-chip-dot" id="aria-chip-dot"></span>
@@ -262,6 +265,72 @@
           </div>
           <!-- Streaming output -->
           <div class="analysis-body" id="analysis-body"></div>
+        </div>
+      </section>
+
+      <!-- ── Tab: Hooks ── -->
+      <section class="tab-content" id="tab-hooks">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">🪝 Git Hook 관리</h2>
+            <button class="btn-ghost" id="refresh-hooks" title="새로고침">↻</button>
+          </div>
+          <p class="hook-desc">
+            훅을 설치하면 <strong>커밋할 때마다 자동으로 AI 분석</strong>이 실행되고,
+            <strong>push 전에 secret 유출을 자동 차단</strong>합니다.
+          </p>
+
+          <div class="hook-section">
+            <div class="hook-section-title">
+              <span class="hook-icon">⚡</span>
+              post-commit — 자동 커밋 분석
+            </div>
+            <p class="hook-section-desc">커밋 직후 Gemini AI가 백그라운드에서 분석 리포트를 자동 생성합니다.</p>
+          </div>
+
+          <div class="hook-section">
+            <div class="hook-section-title">
+              <span class="hook-icon">⛔</span>
+              pre-push — Secret 유출 탐지
+            </div>
+            <p class="hook-section-desc">push 전에 API 키, 비밀번호, private key 등의 유출을 탐지하고 차단합니다.</p>
+          </div>
+
+          <div id="hook-projects-list" class="hook-projects-list">
+            <p class="empty-state">불러오는 중...</p>
+          </div>
+
+          <div class="card-footer hook-footer">
+            <button class="btn-secondary" id="hook-install-all-btn">
+              모든 프로젝트에 설치
+            </button>
+          </div>
+        </div>
+
+        <div class="card hook-cli-card">
+          <h2 class="card-title">💻 CLI 사용법</h2>
+          <div class="hook-cli-block">
+            <div class="hook-cli-item">
+              <code>commit-ai-agent hook install</code>
+              <span>현재 디렉토리에 훅 설치</span>
+            </div>
+            <div class="hook-cli-item">
+              <code>commit-ai-agent hook install --all</code>
+              <span>DEV_ROOT 모든 프로젝트에 설치</span>
+            </div>
+            <div class="hook-cli-item">
+              <code>commit-ai-agent hook remove</code>
+              <span>훅 제거</span>
+            </div>
+            <div class="hook-cli-item">
+              <code>commit-ai-agent hook status</code>
+              <span>설치 상태 확인</span>
+            </div>
+            <div class="hook-cli-item">
+              <code>SKIP_SECRET_SCAN=1 git push</code>
+              <span>Secret 스캔 일시 스킵 (오탐 시)</span>
+            </div>
+          </div>
         </div>
       </section>
 

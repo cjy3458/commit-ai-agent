@@ -97,6 +97,12 @@ async function init() {
     .addEventListener("click", () => {
       togglePre("status-diff-content", "status-diff-toggle-btn");
     });
+  document
+    .getElementById("refresh-hooks")
+    .addEventListener("click", loadHookStatus);
+  document
+    .getElementById("hook-install-all-btn")
+    .addEventListener("click", installAllHooks);
 }
 
 // ── Config check ──
@@ -506,8 +512,105 @@ function setupTabs() {
       btn.classList.add("active");
       document.getElementById("tab-" + tab).classList.add("active");
       if (tab === "reports") loadReports();
+      if (tab === "hooks") loadHookStatus();
     });
   });
+}
+
+// ── Hooks Tab ──
+async function loadHookStatus() {
+  const listEl = document.getElementById("hook-projects-list");
+  listEl.innerHTML = '<p class="empty-state">불러오는 중...</p>';
+  try {
+    const res = await fetch("/api/hooks/status");
+    const { projects } = await res.json();
+    if (!projects || projects.length === 0) {
+      listEl.innerHTML =
+        '<p class="empty-state">git 프로젝트를 찾을 수 없습니다.</p>';
+      return;
+    }
+    listEl.innerHTML = projects
+      .map((p) => {
+        const pcInstalled = p.postCommit?.installed;
+        const ppInstalled = p.prePush?.installed;
+        const allInstalled = pcInstalled && ppInstalled;
+        const noneInstalled = !pcInstalled && !ppInstalled;
+        const statusBadge = allInstalled
+          ? '<span class="hook-badge installed">설치됨</span>'
+          : noneInstalled
+            ? '<span class="hook-badge not-installed">미설치</span>'
+            : '<span class="hook-badge partial">일부 설치</span>';
+
+        return `<div class="hook-project-row" data-name="${escHtml(p.name)}">
+          <div class="hook-project-info">
+            <span class="hook-project-name">${escHtml(p.name)}</span>
+            ${statusBadge}
+            <span class="hook-detail">post-commit: ${pcInstalled ? "✅" : "❌"} &nbsp; pre-push: ${ppInstalled ? "✅" : "❌"}</span>
+          </div>
+          <div class="hook-project-actions">
+            ${
+              allInstalled
+                ? `<button class="btn-ghost hook-remove-btn" data-name="${escHtml(p.name)}">제거</button>`
+                : `<button class="btn-secondary hook-install-btn" data-name="${escHtml(p.name)}">설치</button>`
+            }
+          </div>
+        </div>`;
+      })
+      .join("");
+
+    listEl.querySelectorAll(".hook-install-btn").forEach((btn) => {
+      btn.addEventListener("click", () => handleHookAction("install", btn.dataset.name, btn));
+    });
+    listEl.querySelectorAll(".hook-remove-btn").forEach((btn) => {
+      btn.addEventListener("click", () => handleHookAction("remove", btn.dataset.name, btn));
+    });
+  } catch {
+    listEl.innerHTML =
+      '<p class="empty-state" style="color:var(--danger)">훅 상태를 불러오지 못했습니다.</p>';
+  }
+}
+
+async function handleHookAction(action, projectName, btn) {
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = action === "install" ? "설치 중..." : "제거 중...";
+  try {
+    const res = await fetch(`/api/hooks/${action}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectName }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "요청 실패");
+    await loadHookStatus(); // 새로고침
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = original;
+    alert(`오류: ${err.message}`);
+  }
+}
+
+async function installAllHooks() {
+  const btn = document.getElementById("hook-install-all-btn");
+  btn.disabled = true;
+  btn.textContent = "설치 중...";
+  try {
+    const res = await fetch("/api/hooks/status");
+    const { projects } = await res.json();
+    for (const p of projects) {
+      await fetch("/api/hooks/install", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectName: p.name }),
+      });
+    }
+    await loadHookStatus();
+  } catch (err) {
+    alert(`오류: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "모든 프로젝트에 설치";
+  }
 }
 
 // ── Helpers ──

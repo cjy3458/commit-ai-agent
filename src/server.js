@@ -6,6 +6,8 @@ import fs from "fs";
 import { listGitProjects, getLatestCommit, getWorkingStatus } from "./git.js";
 import { analyzeCommit, analyzeWorkingStatus } from "./analyzer.js";
 import { resolveDevRoot } from "./config.js";
+import { installHooks, removeHooks, getHookStatus } from "./hooks/installer.js";
+import { loadPendingJobs, deleteQueueFile } from "./hooks/queue.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -80,6 +82,45 @@ function resolveProjectPath(projectName) {
 }
 
 // ──────────────────────────────────────────────
+//  백그라운드 분석 작업 큐 (post-commit 훅용)
+// ──────────────────────────────────────────────
+const analysisQueue = [];
+let isProcessingQueue = false;
+
+async function processNextQueueItem() {
+  if (isProcessingQueue || analysisQueue.length === 0) return;
+  isProcessingQueue = true;
+
+  const job = analysisQueue.shift();
+  try {
+    const { projectPath, projectName, queueFile } = job;
+    const commit = await getLatestCommit(projectPath);
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey && apiKey !== "your_gemini_api_key_here") {
+      const analysis = await analyzeCommit(commit, projectName, apiKey);
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .slice(0, 19);
+      const reportFilename = `${projectName}-${timestamp}.md`;
+      const fullReport = `# 커밋 분석 리포트 (자동): ${projectName}\n\n> 생성 시각: ${new Date().toLocaleString("ko-KR")}\n> post-commit 훅에 의해 자동 생성됨\n\n## 커밋 정보\n| 항목 | 내용 |\n|---|---|\n| 해시 | \`${commit.shortHash}\` |\n| 메시지 | ${commit.message} |\n| 작성자 | ${commit.author} |\n| 날짜 | ${commit.date} |\n\n---\n\n${analysis}\n`;
+      fs.writeFileSync(path.join(REPORTS_DIR, reportFilename), fullReport, "utf-8");
+      console.log(`[auto] 분석 완료: ${projectName} (${commit.shortHash})`);
+    }
+    // 큐 파일 정리
+    if (queueFile) deleteQueueFile(queueFile);
+  } catch (err) {
+    console.error(`[auto] 분석 실패: ${err.message}`);
+  } finally {
+    isProcessingQueue = false;
+    // 남은 항목 처리
+    if (analysisQueue.length > 0) {
+      setTimeout(processNextQueueItem, 1000);
+    }
+  }
+}
+
+// ──────────────────────────────────────────────
 //  PWA 아이콘 (SVG를 PNG MIME으로 서빙)
 // ──────────────────────────────────────────────
 app.get("/api/icon/:size", (req, res) => {
@@ -90,6 +131,94 @@ app.get("/api/icon/:size", (req, res) => {
 
 app.get("/favicon.ico", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "icon.svg"));
+});
+
+// ──────────────────────────────────────────────
+//  API: Health Check (훅 스크립트가 서버 실행 여부 확인용)
+// ──────────────────────────────────────────────
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", version: "1.0.0" });
+});
+
+// ──────────────────────────────────────────────
+//  API: 훅 관리
+// ──────────────────────────────────────────────
+
+/** 훅 상태 조회 */
+app.get("/api/hooks/status", async (req, res) => {
+  try {
+    const projects = await listGitProjects(DEV_ROOT);
+    const result = [];
+    for (const proj of projects) {
+      const status = await getHookStatus(proj.path);
+      result.push({ name: proj.name, ...status });
+    }
+    // Single-project 모드도 처리
+    const isSelf = fs.existsSync(path.join(DEV_ROOT, ".git"));
+    if (isSelf && result.length === 0) {
+      const status = await getHookStatus(DEV_ROOT);
+      result.push({ name: path.basename(DEV_ROOT), ...status });
+    }
+    res.json({ projects: result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** 훅 설치 */
+app.post("/api/hooks/install", async (req, res) => {
+  const { projectName } = req.body;
+  try {
+    const projectPath = resolveProjectPath(projectName);
+    const installed = await installHooks(projectPath);
+    res.json({ success: true, installed });
+  } catch (err) {
+    if (isBadRequestError(err)) {
+      return res.status(400).json({ error: err.message.replace(`${BAD_REQUEST_PREFIX} `, "") });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** 훅 제거 */
+app.post("/api/hooks/remove", async (req, res) => {
+  const { projectName } = req.body;
+  try {
+    const projectPath = resolveProjectPath(projectName);
+    const removed = await removeHooks(projectPath);
+    res.json({ success: true, removed });
+  } catch (err) {
+    if (isBadRequestError(err)) {
+      return res.status(400).json({ error: err.message.replace(`${BAD_REQUEST_PREFIX} `, "") });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** post-commit 훅에서 호출: 백그라운드 분석 큐에 추가 */
+app.post("/api/hooks/post-commit-notify", (req, res) => {
+  const { projectPath } = req.body;
+  if (!projectPath || typeof projectPath !== "string") {
+    return res.status(400).json({ error: "projectPath가 필요합니다." });
+  }
+
+  // DEV_ROOT 내부인지 검증
+  const relative = path.relative(DEV_ROOT, path.resolve(projectPath));
+  const isOutside = relative.startsWith("..") || path.isAbsolute(relative);
+
+  // single-project 모드 (DEV_ROOT 자체가 git repo)
+  const isSelf = path.resolve(projectPath) === path.resolve(DEV_ROOT);
+
+  if (isOutside && !isSelf) {
+    return res.status(400).json({ error: "유효하지 않은 projectPath입니다." });
+  }
+
+  const projectName = isSelf ? path.basename(DEV_ROOT) : path.basename(projectPath);
+  analysisQueue.push({ projectPath: path.resolve(projectPath), projectName, queueFile: null });
+
+  // 즉시 응답 후 백그라운드에서 처리
+  res.json({ queued: true, jobId: Date.now() });
+  setTimeout(processNextQueueItem, 100);
 });
 
 // ──────────────────────────────────────────────
@@ -382,4 +511,17 @@ app.listen(PORT, () => {
   console.log(`   브라우저: http://localhost:${PORT}`);
   console.log(`   분석 대상: ${DEV_ROOT}`);
   console.log(`   DEV_ROOT source: ${DEV_ROOT_SOURCE}\n`);
+
+  // 서버 시작 시 pending 큐 처리 (서버가 꺼진 동안 쌓인 post-commit 이벤트)
+  setTimeout(() => {
+    const pendingJobs = loadPendingJobs(DEV_ROOT);
+    if (pendingJobs.length > 0) {
+      console.log(`[queue] pending 분석 ${pendingJobs.length}개 발견, 처리 시작...`);
+      for (const job of pendingJobs) {
+        const projectName = path.basename(job.projectPath);
+        analysisQueue.push({ projectPath: job.projectPath, projectName, queueFile: job.queueFile });
+      }
+      processNextQueueItem();
+    }
+  }, 3000); // 서버 완전 시작 후 3초 대기
 });
