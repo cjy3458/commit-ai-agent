@@ -6,10 +6,27 @@
  * 사용: node post-commit.js <projectPath>
  */
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
 
 const rawPath = process.argv[2] || process.cwd();
 const projectPath = rawPath.replace(/^\/([a-z])\//i, '$1:/');
-const PORT = process.env.PORT || 3000;
+
+// 프로젝트 .env 로드 (PORT 등)
+try {
+  const envPath = path.join(projectPath, '.env');
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
+    for (const line of lines) {
+      const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
+      if (match && !process.env[match[1]]) {
+        process.env[match[1]] = match[2].replace(/^['"]|['"]$/g, '');
+      }
+    }
+  }
+} catch {}
+
+const PORT = process.env.PORT || 50324;
 
 /**
  * 서버 실행 여부 확인 (500ms 타임아웃)
