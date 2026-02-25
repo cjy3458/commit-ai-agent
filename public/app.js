@@ -446,23 +446,65 @@ function onCopy() {
   });
 }
 
-// ── Auto Analysis via SSE ──
+// ── Auto Analysis via SSE (+ polling fallback) ──
+let autoAnalysisPollTimer = null;
+let autoAnalysisShownFilename = null; // 이미 표시한 리포트 중복 방지
+
 function connectAutoAnalysisEvents() {
   const evtSource = new EventSource("/api/events");
+
   evtSource.onmessage = (e) => {
     try {
       const data = JSON.parse(e.data);
-      if (isAnalyzing) return; // 수동 분석 중엔 방해하지 않음
-      if (data.type === "analysis-started") {
-        showAutoAnalysisStarted(data.projectName);
-      } else if (data.type === "analysis-done") {
-        showAutoAnalysisDone(data);
-      } else if (data.type === "analysis-error") {
-        setStatus("error", `자동 분석 오류: ${data.message}`);
-        setAriaState("error");
-      }
+      handleAutoAnalysisEvent(data);
     } catch {}
   };
+
+  evtSource.onerror = () => {
+    // EventSource 자동 재연결됨 — 별도 처리 불필요
+  };
+}
+
+function handleAutoAnalysisEvent(data) {
+  if (isAnalyzing) return; // 수동 분석 중엔 방해 안 함
+  if (data.type === "analysis-started") {
+    showAutoAnalysisStarted(data.projectName);
+    startAutoAnalysisPoll(); // SSE가 끊겨도 완료를 폴링으로 감지
+  } else if (data.type === "analysis-done") {
+    stopAutoAnalysisPoll();
+    if (data.filename !== autoAnalysisShownFilename) {
+      autoAnalysisShownFilename = data.filename;
+      showAutoAnalysisDone(data);
+    }
+  } else if (data.type === "analysis-error") {
+    stopAutoAnalysisPoll();
+    setStatus("error", `자동 분석 오류: ${data.message}`);
+    setAriaState("error");
+  }
+}
+
+// SSE가 analysis-done을 못 받았을 때를 대비한 2초 폴링
+function startAutoAnalysisPoll() {
+  stopAutoAnalysisPoll();
+  autoAnalysisPollTimer = setInterval(async () => {
+    if (isAnalyzing) return;
+    try {
+      const res = await fetch("/api/auto-analysis/state");
+      const state = await res.json();
+      if (state.status === "done" && state.filename !== autoAnalysisShownFilename) {
+        autoAnalysisShownFilename = state.filename;
+        stopAutoAnalysisPoll();
+        showAutoAnalysisDone(state);
+      }
+    } catch {}
+  }, 2000);
+}
+
+function stopAutoAnalysisPoll() {
+  if (autoAnalysisPollTimer) {
+    clearInterval(autoAnalysisPollTimer);
+    autoAnalysisPollTimer = null;
+  }
 }
 
 function showAutoAnalysisStarted(projectName) {

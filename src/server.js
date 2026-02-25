@@ -85,8 +85,12 @@ function resolveProjectPath(projectName) {
 // ──────────────────────────────────────────────
 const sseClients = new Set();
 
+// 최신 자동 분석 상태 (SSE 놓쳤을 때 폴링용)
+let autoAnalysisState = { status: "idle", projectName: null, filename: null, content: null };
+
 function broadcastEvent(data) {
   const payload = `data: ${JSON.stringify(data)}\n\n`;
+  console.log(`[SSE] broadcast "${data.type}" → ${sseClients.size} client(s)`);
   for (const client of sseClients) {
     client.write(payload);
   }
@@ -103,6 +107,7 @@ async function processNextQueueItem() {
   isProcessingQueue = true;
 
   const job = analysisQueue.shift();
+  autoAnalysisState = { status: "analyzing", projectName: job.projectName, filename: null, content: null };
   broadcastEvent({ type: "analysis-started", projectName: job.projectName });
 
   try {
@@ -118,12 +123,15 @@ async function processNextQueueItem() {
       const reportFilename = `${projectName}-${timestamp}.md`;
       const fullReport = `# 커밋 분석 리포트 (자동): ${projectName}\n\n> 생성 시각: ${new Date().toLocaleString("ko-KR")}\n> post-commit 훅에 의해 자동 생성됨\n\n## 커밋 정보\n| 항목 | 내용 |\n|---|---|\n| 해시 | \`${commit.shortHash}\` |\n| 메시지 | ${commit.message} |\n| 작성자 | ${commit.author} |\n| 날짜 | ${commit.date} |\n\n---\n\n${analysis}\n`;
       fs.writeFileSync(path.join(REPORTS_DIR, reportFilename), fullReport, "utf-8");
+      autoAnalysisState = { status: "done", projectName, filename: reportFilename, content: fullReport };
       broadcastEvent({ type: "analysis-done", projectName, filename: reportFilename, content: fullReport });
       console.log(`[auto] 분석 완료: ${projectName} (${commit.shortHash})`);
     } else {
+      autoAnalysisState = { status: "idle", projectName: null, filename: null, content: null };
       broadcastEvent({ type: "analysis-error", message: "GEMINI_API_KEY가 설정되지 않았습니다." });
     }
   } catch (err) {
+    autoAnalysisState = { status: "idle", projectName: null, filename: null, content: null };
     broadcastEvent({ type: "analysis-error", message: err.message });
     console.error(`[auto] 분석 실패: ${err.message}`);
   } finally {
@@ -155,8 +163,33 @@ app.get("/api/events", (req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
+
   sseClients.add(res);
-  req.on("close", () => sseClients.delete(res));
+  console.log(`[SSE] client connected (total: ${sseClients.size})`);
+
+  // 연결 직후 현재 상태 전달 (페이지 로드 타이밍 놓침 방지)
+  if (autoAnalysisState.status !== "idle") {
+    const eventType = autoAnalysisState.status === "analyzing" ? "analysis-started" : "analysis-done";
+    res.write(`data: ${JSON.stringify({ type: eventType, ...autoAnalysisState })}\n\n`);
+  }
+
+  // 연결 유지용 하트비트 (30초마다)
+  const heartbeat = setInterval(() => {
+    res.write(": ping\n\n");
+  }, 30000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    sseClients.delete(res);
+    console.log(`[SSE] client disconnected (total: ${sseClients.size})`);
+  });
+});
+
+// ──────────────────────────────────────────────
+//  API: 자동 분석 현재 상태 (SSE 폴백용)
+// ──────────────────────────────────────────────
+app.get("/api/auto-analysis/state", (req, res) => {
+  res.json(autoAnalysisState);
 });
 
 // ──────────────────────────────────────────────
