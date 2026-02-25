@@ -156,7 +156,7 @@
           <div class="aria-bubble-wrap">
             <div class="aria-bubble">
               <span class="aria-bubble-text" id="aria-bubble-text"
-                >어떤 프로젝트의 커밋을 분석해드릴까요?</span
+                >분석을 시작할까요?</span
               >
               <span
                 class="aria-typing-dots"
@@ -177,14 +177,8 @@
           키를 입력해 주세요.
         </div>
 
-        <!-- Project Selector Card -->
+        <!-- Selector Card -->
         <div class="card selector-card">
-          <div class="card-header">
-            <h2 class="card-title">🗂 프로젝트 선택</h2>
-            <button class="refresh-btn" id="refresh-projects" title="새로고침">
-              ↻
-            </button>
-          </div>
           <!-- Mode Toggle -->
           <div class="mode-toggle">
             <button class="mode-btn active" id="mode-commit" data-mode="commit">
@@ -194,18 +188,8 @@
               🔍 현재 변경사항 분석
             </button>
           </div>
-          <div class="project-grid" id="project-grid">
-            <div class="skeleton-grid">
-              <div class="skeleton"></div>
-              <div class="skeleton"></div>
-              <div class="skeleton"></div>
-            </div>
-          </div>
           <div class="card-footer">
-            <span class="selected-hint" id="selected-hint"
-              >프로젝트를 선택해 주세요</span
-            >
-            <button class="btn-primary" id="analyze-btn" disabled>
+            <button class="btn-primary" id="analyze-btn">
               <span class="btn-icon">🤖</span>
               <span id="analyze-btn-text">Hanni에게 분석 요청</span>
             </button>

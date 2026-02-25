@@ -1,11 +1,10 @@
 /* global marked */
 
 // ── State ──
-let selectedProject = null;
+let selectedProject = "__self__";
 let isAnalyzing = false;
-let analyzeMode = "commit"; // 'commit' | 'status'
-let isSingleProject = false;
-let singleProjectName = "";
+let analyzeMode = "commit";
+let projectName = "";
 
 // ── Aria State Machine ──
 function setAriaState(state, opts = {}) {
@@ -37,7 +36,7 @@ function setAriaState(state, opts = {}) {
   // Bubble messages
   const p = opts.project ? `<strong>${opts.project}</strong>` : "";
   const msgMap = {
-    idle: "어떤 프로젝트의 커밋을 분석해드릴까요?",
+    idle: "분석을 시작할까요?",
     "ready-commit": `${p} 최근 커밋을 확인했어요. 분석을 시작할까요? 👀`,
     "ready-status":
       opts.n > 0
@@ -71,20 +70,15 @@ async function init() {
   setupModeToggle();
   await checkConfig();
 
-  if (isSingleProject) {
-    await enterSingleProjectMode();
+  if (analyzeMode === "commit") {
+    await fetchCommitPreview();
   } else {
-    await loadProjects();
-    setAriaState("idle");
+    await fetchStatusPreview();
   }
 
   // SSE: post-commit 자동 분석 이벤트 수신
   connectAutoAnalysisEvents();
 
-  // wire static event listeners (elements guaranteed to exist now)
-  document
-    .getElementById("refresh-projects")
-    .addEventListener("click", loadProjects);
   document
     .getElementById("analyze-btn")
     .addEventListener("click", onAnalyzeClick);
@@ -113,106 +107,12 @@ async function checkConfig() {
     if (!data.hasKey) {
       document.getElementById("api-key-warn").style.display = "flex";
     }
-    if (data.isSingleProject) {
-      isSingleProject = true;
-      singleProjectName = data.singleProjectName || "project";
-    }
+    projectName = data.projectName || "project";
   } catch {}
 }
 
-// ── Single Project Mode ──
-async function enterSingleProjectMode() {
-  // 프로젝트 선택 UI만 숨김 (모드 토글은 유지)
-  const header = document.querySelector(".selector-card .card-header");
-  const projectGrid = document.getElementById("project-grid");
-  const selectedHint = document.getElementById("selected-hint");
-  if (header) header.style.display = "none";
-  if (projectGrid) projectGrid.style.display = "none";
-  if (selectedHint) selectedHint.style.display = "none";
-
-  // 현재 디렉토리를 프로젝트로 자동 선택
-  selectedProject = "__self__";
-
-  document.getElementById("analyze-btn").disabled = false;
-  const btnText = document.getElementById("analyze-btn-text");
-  if (btnText) btnText.textContent = "Hanni에게 분석 요청";
-
-  // 현재 모드에 따라 미리 로드
-  if (analyzeMode === "commit") {
-    await fetchCommitPreview();
-  } else {
-    await fetchStatusPreview();
-  }
-}
-
-// ── Projects ──
-async function loadProjects() {
-  const grid = document.getElementById("project-grid");
-  grid.innerHTML =
-    '<div class="skeleton-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>';
-  try {
-    const res = await fetch("/api/projects");
-    const { projects } = await res.json();
-    renderProjects(projects);
-  } catch (err) {
-    grid.innerHTML = `<p style="color:var(--danger);font-size:14px">프로젝트 목록을 불러오지 못했습니다: ${err.message}</p>`;
-  }
-}
-
-function renderProjects(projects) {
-  const grid = document.getElementById("project-grid");
-  if (!projects || projects.length === 0) {
-    grid.innerHTML =
-      '<p style="color:var(--text3);font-size:14px">git 프로젝트가 없습니다.</p>';
-    return;
-  }
-  grid.innerHTML = projects
-    .map(
-      (p) => `
-    <div class="project-item" data-name="${p.name}">
-      <span class="proj-icon">${getProjectIcon(p.name)}</span>
-      <span class="proj-name">${p.name}</span>
-    </div>
-  `,
-    )
-    .join("");
-  grid.querySelectorAll(".project-item").forEach((el) => {
-    el.addEventListener("click", () => selectProject(el));
-  });
-}
-
-function getProjectIcon(name) {
-  if (name.includes("next") || name.includes("react")) return "⚛️";
-  if (name.includes("nest") || name.includes("api")) return "🐉";
-  if (name.includes("hook")) return "🪝";
-  if (name.includes("portfolio")) return "🎨";
-  if (name.includes("todo")) return "✅";
-  if (name.includes("doc")) return "📚";
-  return "📁";
-}
-
-// ── Project Selection ──
-async function selectProject(el) {
-  document
-    .querySelectorAll(".project-item")
-    .forEach((e) => e.classList.remove("selected"));
-  el.classList.add("selected");
-  selectedProject = el.dataset.name;
-  document.getElementById("selected-hint").textContent =
-    `선택됨: ${selectedProject}`;
-  document.getElementById("analyze-btn").disabled = false;
-  document.getElementById("commit-card").style.display = "none";
-  document.getElementById("status-card").style.display = "none";
-
-  if (analyzeMode === "commit") {
-    await fetchCommitPreview();
-  } else {
-    await fetchStatusPreview();
-  }
-}
-
+// ── Preview loading ──
 async function fetchCommitPreview() {
-  const displayName = isSingleProject ? singleProjectName : selectedProject;
   try {
     const res = await fetch(
       `/api/projects/${encodeURIComponent(selectedProject)}/commit`,
@@ -221,15 +121,14 @@ async function fetchCommitPreview() {
     if (error) throw new Error(error);
     renderCommitCard(commit);
     document.getElementById("commit-card").style.display = "block";
-    setAriaState("ready-commit", { project: displayName });
+    setAriaState("ready-commit", { project: projectName });
   } catch (e) {
     console.warn("commit preview failed:", e.message);
-    setAriaState("ready-commit", { project: displayName });
+    setAriaState("ready-commit", { project: projectName });
   }
 }
 
 async function fetchStatusPreview() {
-  const displayName = isSingleProject ? singleProjectName : selectedProject;
   try {
     const res = await fetch(
       `/api/projects/${encodeURIComponent(selectedProject)}/status`,
@@ -240,17 +139,15 @@ async function fetchStatusPreview() {
       renderStatusCard(status);
       document.getElementById("status-card").style.display = "block";
       setAriaState("ready-status", {
-        project: displayName,
+        project: projectName,
         n: status.totalFiles,
       });
     } else {
-      const hint = document.getElementById("selected-hint");
-      if (hint) hint.textContent = `${displayName} — 변경사항 없음`;
-      setAriaState("ready-status", { project: displayName, n: 0 });
+      setAriaState("ready-status", { project: projectName, n: 0 });
     }
   } catch (e) {
     console.warn("status preview failed:", e.message);
-    setAriaState("ready-status", { project: displayName, n: 0 });
+    setAriaState("ready-status", { project: projectName, n: 0 });
   }
 }
 
@@ -324,7 +221,6 @@ function switchMode(mode) {
     btnText.textContent =
       mode === "commit" ? "Hanni에게 분석 요청" : "Hanni에게 리뷰 요청";
 
-  if (!selectedProject) return;
   if (mode === "commit") fetchCommitPreview();
   else fetchStatusPreview();
 }
@@ -337,7 +233,7 @@ function onAnalyzeClick() {
 
 // ── Generic SSE Analysis ──
 async function startAnalysis(endpoint) {
-  if (isAnalyzing || !selectedProject) return;
+  if (isAnalyzing) return;
   isAnalyzing = true;
 
   const resultCard = document.getElementById("result-card");
@@ -349,7 +245,7 @@ async function startAnalysis(endpoint) {
   resultCard.style.display = "block";
   analysisBody.innerHTML = "";
   reportSaved.textContent = "";
-  document.getElementById("copy-btn").style.display = "none"; // 분석 시작 시 숨김
+  document.getElementById("copy-btn").style.display = "none";
   setStatus("loading", "Hanni가 코드를 살펴보고 있어요...");
   setAriaState("thinking");
   analyzeBtn.disabled = true;
@@ -404,7 +300,7 @@ async function startAnalysis(endpoint) {
           } else if (data.type === "done") {
             setStatus("done", "✅ 분석 완료!");
             setAriaState("done");
-            document.getElementById("copy-btn").style.display = "inline-flex"; // 완료 시에만 표시
+            document.getElementById("copy-btn").style.display = "inline-flex";
           } else if (data.type === "error") {
             setStatus("error", `오류: ${data.message}`);
             setAriaState("error");
@@ -448,7 +344,7 @@ function onCopy() {
 
 // ── Auto Analysis via SSE (+ polling fallback) ──
 let autoAnalysisPollTimer = null;
-let autoAnalysisShownFilename = null; // 이미 표시한 리포트 중복 방지
+let autoAnalysisShownFilename = null;
 
 function connectAutoAnalysisEvents() {
   const evtSource = new EventSource("/api/events");
@@ -469,10 +365,10 @@ function connectAutoAnalysisEvents() {
 }
 
 function handleAutoAnalysisEvent(data) {
-  if (isAnalyzing) return; // 수동 분석 중엔 방해 안 함
+  if (isAnalyzing) return;
   if (data.type === "analysis-started") {
     showAutoAnalysisStarted(data.projectName);
-    startAutoAnalysisPoll(); // SSE가 끊겨도 완료를 폴링으로 감지
+    startAutoAnalysisPoll();
   } else if (data.type === "analysis-done") {
     stopAutoAnalysisPoll();
     if (data.filename !== autoAnalysisShownFilename) {
@@ -486,7 +382,6 @@ function handleAutoAnalysisEvent(data) {
   }
 }
 
-// 5초마다 서버 상태 폴링 (SSE 대비 폴백)
 function startAutoAnalysisPoll() {
   stopAutoAnalysisPoll();
   autoAnalysisPollTimer = setInterval(async () => {
@@ -512,7 +407,7 @@ function stopAutoAnalysisPoll() {
   }
 }
 
-function showAutoAnalysisStarted(projectName) {
+function showAutoAnalysisStarted(pName) {
   const resultCard = document.getElementById("result-card");
   const analysisBody = document.getElementById("analysis-body");
   const reportSaved = document.getElementById("report-saved");
@@ -520,7 +415,7 @@ function showAutoAnalysisStarted(projectName) {
   analysisBody.innerHTML = "";
   reportSaved.textContent = "";
   document.getElementById("copy-btn").style.display = "none";
-  setStatus("loading", `${projectName} 커밋 자동 분석 중...`);
+  setStatus("loading", `${pName} 커밋 자동 분석 중...`);
   setAriaState("thinking");
   resultCard.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -530,7 +425,7 @@ function showAutoAnalysisDone({ filename, content }) {
   const analysisBody = document.getElementById("analysis-body");
   const reportSaved = document.getElementById("report-saved");
   const copyBtn = document.getElementById("copy-btn");
-  resultCard.style.display = "block"; // ← 핵심: 카드 표시
+  resultCard.style.display = "block";
   analysisBody.innerHTML = marked.parse(content);
   reportSaved.textContent = `✓ 저장됨: ${filename}`;
   setStatus("done", "✅ 자동 분석 완료!");
@@ -665,7 +560,7 @@ async function loadHookStatus() {
   }
 }
 
-async function handleHookAction(action, projectName, btn) {
+async function handleHookAction(action, pName, btn) {
   const original = btn.textContent;
   btn.disabled = true;
   btn.textContent = action === "install" ? "설치 중..." : "제거 중...";
@@ -673,11 +568,11 @@ async function handleHookAction(action, projectName, btn) {
     const res = await fetch(`/api/hooks/${action}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectName }),
+      body: JSON.stringify({ projectName: pName }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "요청 실패");
-    await loadHookStatus(); // 새로고침
+    await loadHookStatus();
   } catch (err) {
     btn.disabled = false;
     btn.textContent = original;

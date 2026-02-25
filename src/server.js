@@ -3,7 +3,7 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-import { listGitProjects, getLatestCommit, getWorkingStatus } from "./git.js";
+import { getLatestCommit, getWorkingStatus } from "./git.js";
 import { analyzeCommit, analyzeWorkingStatus } from "./analyzer.js";
 import { resolveDevRoot } from "./config.js";
 import { installHooks, removeHooks, getHookStatus } from "./hooks/installer.js";
@@ -12,7 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 const PORT = process.env.PORT || 50324;
-const { devRoot: DEV_ROOT, source: DEV_ROOT_SOURCE } = resolveDevRoot();
+const DEV_ROOT = resolveDevRoot();
 const BAD_REQUEST_PREFIX = "[BAD_REQUEST]";
 
 // npx/global install 시: COMMIT_ANALYZER_ROOT = bin/cli.js가 설정한 패키지 루트
@@ -47,37 +47,15 @@ function resolveProjectPath(projectName) {
     throw createBadRequestError("프로젝트명이 필요합니다.");
   }
 
-  const trimmedName = projectName.trim();
-  if (!trimmedName) {
-    throw createBadRequestError("프로젝트명이 비어 있습니다.");
+  if (projectName.trim() !== "__self__") {
+    throw createBadRequestError("유효하지 않은 프로젝트명입니다.");
   }
 
-  // Single-project mode: "__self__" = DEV_ROOT 자체 (DEV_ROOT가 git 저장소인 경우)
-  if (trimmedName === "__self__") {
-    if (!fs.existsSync(path.join(DEV_ROOT, ".git"))) {
-      throw createBadRequestError("현재 디렉토리가 Git 저장소가 아닙니다.");
-    }
-    return DEV_ROOT;
+  if (!fs.existsSync(path.join(DEV_ROOT, ".git"))) {
+    throw createBadRequestError("현재 디렉토리가 Git 저장소가 아닙니다.");
   }
 
-  const projectPath = path.resolve(DEV_ROOT, trimmedName);
-  const relativePath = path.relative(DEV_ROOT, projectPath);
-  const isOutsideRoot =
-    relativePath.startsWith("..") || path.isAbsolute(relativePath);
-
-  if (isOutsideRoot) {
-    throw createBadRequestError("유효하지 않은 프로젝트 경로입니다.");
-  }
-
-  if (!fs.existsSync(projectPath) || !fs.statSync(projectPath).isDirectory()) {
-    throw createBadRequestError("프로젝트를 찾을 수 없습니다.");
-  }
-
-  if (!fs.existsSync(path.join(projectPath, ".git"))) {
-    throw createBadRequestError("Git 저장소가 아닌 프로젝트입니다.");
-  }
-
-  return projectPath;
+  return DEV_ROOT;
 }
 
 // ──────────────────────────────────────────────
@@ -254,18 +232,11 @@ app.post("/api/hooks/post-commit-notify", (req, res) => {
     return res.status(400).json({ error: "projectPath가 필요합니다." });
   }
 
-  // DEV_ROOT 내부인지 검증
-  const relative = path.relative(DEV_ROOT, path.resolve(projectPath));
-  const isOutside = relative.startsWith("..") || path.isAbsolute(relative);
-
-  // single-project 모드 (DEV_ROOT 자체가 git repo)
-  const isSelf = path.resolve(projectPath) === path.resolve(DEV_ROOT);
-
-  if (isOutside && !isSelf) {
+  if (path.resolve(projectPath) !== path.resolve(DEV_ROOT)) {
     return res.status(400).json({ error: "유효하지 않은 projectPath입니다." });
   }
 
-  const projectName = isSelf ? path.basename(DEV_ROOT) : path.basename(projectPath);
+  const projectName = path.basename(DEV_ROOT);
   analysisQueue.push({ projectPath: path.resolve(projectPath), projectName });
 
   // 즉시 응답 후 백그라운드에서 처리
@@ -275,34 +246,16 @@ app.post("/api/hooks/post-commit-notify", (req, res) => {
 
 // ──────────────────────────────────────────────
 //  API: 설정 확인
-
 // ──────────────────────────────────────────────
 app.get("/api/config", (req, res) => {
   const hasKey = !!(
     process.env.GEMINI_API_KEY &&
     process.env.GEMINI_API_KEY !== "your_gemini_api_key_here"
   );
-  const isSingleProject =
-    DEV_ROOT_SOURCE === "cwd" && fs.existsSync(path.join(DEV_ROOT, ".git"));
   res.json({
     hasKey,
-    devRoot: DEV_ROOT,
-    devRootSource: DEV_ROOT_SOURCE,
-    isSingleProject,
-    singleProjectName: isSingleProject ? path.basename(DEV_ROOT) : null,
+    projectName: path.basename(DEV_ROOT),
   });
-});
-
-// ──────────────────────────────────────────────
-//  API: 프로젝트 목록
-// ──────────────────────────────────────────────
-app.get("/api/projects", async (req, res) => {
-  try {
-    const projects = await listGitProjects(DEV_ROOT);
-    res.json({ projects });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 // ──────────────────────────────────────────────
@@ -561,7 +514,5 @@ ${analysis}
 app.listen(PORT, () => {
   console.log(`\n🚀 Commit Ai Agent 실행 중`);
   console.log(`   브라우저: http://localhost:${PORT}`);
-  console.log(`   분석 대상: ${DEV_ROOT}`);
-  console.log(`   DEV_ROOT source: ${DEV_ROOT_SOURCE}\n`);
-
+  console.log(`   분석 대상: ${DEV_ROOT}\n`);
 });

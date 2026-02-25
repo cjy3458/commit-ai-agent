@@ -3,25 +3,6 @@ import path from "path";
 import fs from "fs";
 
 /**
- * DEV_ROOT 하위의 git 프로젝트 목록을 반환합니다.
- */
-export async function listGitProjects(devRoot) {
-  const entries = fs.readdirSync(devRoot, { withFileTypes: true });
-  const projects = [];
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const fullPath = path.join(devRoot, entry.name);
-    const gitDir = path.join(fullPath, ".git");
-    if (fs.existsSync(gitDir)) {
-      projects.push({ name: entry.name, path: fullPath });
-    }
-  }
-
-  return projects;
-}
-
-/**
  * 특정 프로젝트의 최신 커밋 정보와 diff를 가져옵니다.
  */
 export async function getLatestCommit(projectPath) {
