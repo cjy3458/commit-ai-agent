@@ -6,6 +6,7 @@ let isAnalyzing = false;
 let analyzeMode = "commit"; // 'commit' | 'status'
 let isSingleProject = false;
 let singleProjectName = "";
+let lastReportFilename = null; // 마지막으로 표시한 리포트 파일명 (자동 갱신 중복 방지)
 
 // ── Aria State Machine ──
 function setAriaState(state, opts = {}) {
@@ -77,6 +78,10 @@ async function init() {
     await loadProjects();
     setAriaState("idle");
   }
+
+  // 최신 리포트 로드 (자동 분석 결과를 메인에 표시)
+  await loadLatestReport();
+  setInterval(loadLatestReport, 10000); // 10초마다 새 리포트 확인
 
   // wire static event listeners (elements guaranteed to exist now)
   document
@@ -397,6 +402,7 @@ async function startAnalysis(endpoint) {
             analysisBody.innerHTML = marked.parse(data.analysis);
             if (data.reportFilename) {
               reportSaved.textContent = `✓ 저장됨: ${data.reportFilename}`;
+              lastReportFilename = data.reportFilename; // 중복 자동 갱신 방지
             }
           } else if (data.type === "done") {
             setStatus("done", "✅ 분석 완료!");
@@ -441,6 +447,31 @@ function onCopy() {
       btn.textContent = "📋 복사";
     }, 2000);
   });
+}
+
+// ── Latest Report Auto-Display ──
+async function loadLatestReport() {
+  if (isAnalyzing) return; // 수동 분석 중엔 방해하지 않음
+  try {
+    const res = await fetch("/api/reports/latest");
+    const { report } = await res.json();
+    if (!report || report.filename === lastReportFilename) return;
+    lastReportFilename = report.filename;
+    showAutoReport(report);
+  } catch {}
+}
+
+function showAutoReport(report) {
+  const resultCard = document.getElementById("result-card");
+  const analysisBody = document.getElementById("analysis-body");
+  const reportSaved = document.getElementById("report-saved");
+  const copyBtn = document.getElementById("copy-btn");
+  resultCard.style.display = "block";
+  analysisBody.innerHTML = marked.parse(report.content);
+  reportSaved.textContent = `✓ 저장됨: ${report.filename}`;
+  setStatus("done", "✅ 분석 완료 (자동)");
+  copyBtn.style.display = "inline-flex";
+  copyBtn._text = report.content;
 }
 
 // ── Reports Tab ──
@@ -538,9 +569,10 @@ async function loadHookStatus() {
             ? '<span class="hook-badge not-installed">미설치</span>'
             : '<span class="hook-badge partial">일부 설치</span>';
 
+        const displayName = p.displayName || p.name;
         return `<div class="hook-project-row" data-name="${escHtml(p.name)}">
           <div class="hook-project-info">
-            <span class="hook-project-name">${escHtml(p.name)}</span>
+            <span class="hook-project-name">${escHtml(displayName)}</span>
             ${statusBadge}
             <span class="hook-detail">post-commit: ${pcInstalled ? "✅" : "❌"} &nbsp; pre-push: ${ppInstalled ? "✅" : "❌"}</span>
           </div>

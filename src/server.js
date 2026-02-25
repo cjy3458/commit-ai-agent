@@ -140,22 +140,15 @@ app.get("/api/health", (req, res) => {
 //  API: 훅 관리
 // ──────────────────────────────────────────────
 
-/** 훅 상태 조회 */
+/** 훅 상태 조회 (현재 프로젝트만) */
 app.get("/api/hooks/status", async (req, res) => {
   try {
-    const projects = await listGitProjects(DEV_ROOT);
-    const result = [];
-    for (const proj of projects) {
-      const status = await getHookStatus(proj.path);
-      result.push({ name: proj.name, ...status });
-    }
-    // Single-project 모드도 처리
     const isSelf = fs.existsSync(path.join(DEV_ROOT, ".git"));
-    if (isSelf && result.length === 0) {
-      const status = await getHookStatus(DEV_ROOT);
-      result.push({ name: path.basename(DEV_ROOT), ...status });
+    if (!isSelf) {
+      return res.json({ projects: [] });
     }
-    res.json({ projects: result });
+    const status = await getHookStatus(DEV_ROOT);
+    res.json({ projects: [{ name: "__self__", displayName: path.basename(DEV_ROOT), ...status }] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -441,6 +434,25 @@ app.get("/api/reports", (req, res) => {
     res.json({ reports: files });
   } catch {
     res.json({ reports: [] });
+  }
+});
+
+// ──────────────────────────────────────────────
+//  API: 최신 리포트 조회 (자동 갱신용)
+// ──────────────────────────────────────────────
+app.get("/api/reports/latest", (req, res) => {
+  try {
+    const files = fs
+      .readdirSync(REPORTS_DIR)
+      .filter((f) => f.endsWith(".md"))
+      .sort()
+      .reverse();
+    if (!files.length) return res.json({ report: null });
+    const filename = files[0];
+    const content = fs.readFileSync(path.join(REPORTS_DIR, filename), "utf-8");
+    res.json({ report: { filename, content } });
+  } catch {
+    res.json({ report: null });
   }
 });
 
