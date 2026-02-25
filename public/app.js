@@ -463,6 +463,9 @@ function connectAutoAnalysisEvents() {
   evtSource.onerror = () => {
     // EventSource 자동 재연결됨 — 별도 처리 불필요
   };
+
+  // SSE와 관계없이 5초마다 상태 폴링 (SSE 놓쳐도 반드시 동작)
+  startAutoAnalysisPoll();
 }
 
 function handleAutoAnalysisEvent(data) {
@@ -483,7 +486,7 @@ function handleAutoAnalysisEvent(data) {
   }
 }
 
-// SSE가 analysis-done을 못 받았을 때를 대비한 2초 폴링
+// 5초마다 서버 상태 폴링 (SSE 대비 폴백)
 function startAutoAnalysisPoll() {
   stopAutoAnalysisPoll();
   autoAnalysisPollTimer = setInterval(async () => {
@@ -491,13 +494,15 @@ function startAutoAnalysisPoll() {
     try {
       const res = await fetch("/api/auto-analysis/state");
       const state = await res.json();
-      if (state.status === "done" && state.filename !== autoAnalysisShownFilename) {
+      if (state.status === "analyzing" && autoAnalysisShownFilename !== "__loading__") {
+        autoAnalysisShownFilename = "__loading__";
+        showAutoAnalysisStarted(state.projectName);
+      } else if (state.status === "done" && state.filename !== autoAnalysisShownFilename) {
         autoAnalysisShownFilename = state.filename;
-        stopAutoAnalysisPoll();
         showAutoAnalysisDone(state);
       }
     } catch {}
-  }, 2000);
+  }, 5000);
 }
 
 function stopAutoAnalysisPoll() {
@@ -521,15 +526,18 @@ function showAutoAnalysisStarted(projectName) {
 }
 
 function showAutoAnalysisDone({ filename, content }) {
+  const resultCard = document.getElementById("result-card");
   const analysisBody = document.getElementById("analysis-body");
   const reportSaved = document.getElementById("report-saved");
   const copyBtn = document.getElementById("copy-btn");
+  resultCard.style.display = "block"; // ← 핵심: 카드 표시
   analysisBody.innerHTML = marked.parse(content);
   reportSaved.textContent = `✓ 저장됨: ${filename}`;
   setStatus("done", "✅ 자동 분석 완료!");
   setAriaState("done");
   copyBtn.style.display = "inline-flex";
   copyBtn._text = content;
+  resultCard.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 // ── Reports Tab ──
