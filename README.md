@@ -11,7 +11,7 @@ Claude Code나 Codex 같은 CLI AI가 있는데 왜 commit-ai-agent를 써야 �
 | 기능 | CLI AI (Claude Code / Codex) | commit-ai-agent |
 | ---- | :--------------------------: | :-------------: |
 | 커밋 분석 | 수동 명령어 입력 필요 | **자동** (git commit 직후 백그라운드 실행) |
-| 분석 범위 | 현재 세션 단일 프로젝트 | **DEV_ROOT 하위 모든 프로젝트** 동시 관리 |
+| 분석 범위 | 현재 세션 단일 프로젝트 | 현재 프로젝트 자동 분석 |
 | 상시 실행 | 세션 종료 시 중단 | **데몬 서버** — 항상 켜져 있음 |
 | Secret 탐지 | 없음 | **pre-push 훅** — push 전 자격증명 자동 차단 |
 | 오프라인 큐 | 없음 | 서버 꺼진 동안 커밋 → 재시작 시 **자동 처리** |
@@ -35,7 +35,7 @@ Claude Code나 Codex 같은 CLI AI가 있는데 왜 commit-ai-agent를 써야 �
 
 ### 방법 A — npx (설치 없이 바로 실행)
 
-- 프로젝트가 모여있는 디렉토리 or 프로젝트 루트에서 명령어 실행
+- 프로젝트 루트에서 명령어 실행
 - 해당 디렉토리에서 .env 파일 생성(.env.example 참고)
 
 ```bash
@@ -45,7 +45,7 @@ npx commit-ai-agent
 ### 방법 B — 전역 설치 후 명령어로 실행
 
 - 전역으로 설치하면 어느 위치에서든 `commit-ai-agent` 명령어로 실행 가능
-- 프로젝트가 모여있는 디렉토리 or 프로젝트 루트에서 명령어 실행
+- 프로젝트 루트에서 명령어 실행
 - 해당 디렉토리에서 .env 파일 생성(.env.example 참고)
 
 ```bash
@@ -54,8 +54,6 @@ commit-ai-agent
 ```
 
 ### 방법 C — 직접 클론
-
-프로젝트가 모여있는 디렉토리에 클론한 후, 해당 디렉토리에서 명령어 실행
 
 ```bash
 git clone https://github.com/cjy3458/commit-ai-agent.git
@@ -200,7 +198,7 @@ SKIP_SECRET_SCAN=1 git push
 → Gemini 무료 티어 한도 도달. 잠시 후 재시도하거나 [유료 플랜](https://ai.google.dev)으로 업그레이드하세요.
 
 **프로젝트 목록이 안 뜸**
-→ 기본값은 실행 디렉토리입니다. 필요 시 `DEV_ROOT`를 git 저장소가 모인 상위 폴더로 지정하세요.
+→ 기본값은 실행 디렉토리입니다. `DEV_ROOT` 환경변수로 프로젝트 경로를 직접 지정할 수 있습니다.
 
 **`[DEP0190] DeprecationWarning` 경고 (Node.js 22+)**
 → `shell: true` 옵션과 args 배열을 함께 전달할 때 Node.js 22 이상에서 발생하는 보안 경고입니다. v1.0.7 이상으로 업데이트하면 해결됩니다.
