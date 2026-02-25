@@ -6,7 +6,6 @@ let isAnalyzing = false;
 let analyzeMode = "commit"; // 'commit' | 'status'
 let isSingleProject = false;
 let singleProjectName = "";
-let lastReportFilename = null; // 마지막으로 표시한 리포트 파일명 (자동 갱신 중복 방지)
 
 // ── Aria State Machine ──
 function setAriaState(state, opts = {}) {
@@ -79,9 +78,8 @@ async function init() {
     setAriaState("idle");
   }
 
-  // 최신 리포트 로드 (자동 분석 결과를 메인에 표시)
-  await loadLatestReport();
-  setInterval(loadLatestReport, 10000); // 10초마다 새 리포트 확인
+  // SSE: post-commit 자동 분석 이벤트 수신
+  connectAutoAnalysisEvents();
 
   // wire static event listeners (elements guaranteed to exist now)
   document
@@ -402,7 +400,6 @@ async function startAnalysis(endpoint) {
             analysisBody.innerHTML = marked.parse(data.analysis);
             if (data.reportFilename) {
               reportSaved.textContent = `✓ 저장됨: ${data.reportFilename}`;
-              lastReportFilename = data.reportFilename; // 중복 자동 갱신 방지
             }
           } else if (data.type === "done") {
             setStatus("done", "✅ 분석 완료!");
@@ -449,29 +446,48 @@ function onCopy() {
   });
 }
 
-// ── Latest Report Auto-Display ──
-async function loadLatestReport() {
-  if (isAnalyzing) return; // 수동 분석 중엔 방해하지 않음
-  try {
-    const res = await fetch("/api/reports/latest");
-    const { report } = await res.json();
-    if (!report || report.filename === lastReportFilename) return;
-    lastReportFilename = report.filename;
-    showAutoReport(report);
-  } catch {}
+// ── Auto Analysis via SSE ──
+function connectAutoAnalysisEvents() {
+  const evtSource = new EventSource("/api/events");
+  evtSource.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (isAnalyzing) return; // 수동 분석 중엔 방해하지 않음
+      if (data.type === "analysis-started") {
+        showAutoAnalysisStarted(data.projectName);
+      } else if (data.type === "analysis-done") {
+        showAutoAnalysisDone(data);
+      } else if (data.type === "analysis-error") {
+        setStatus("error", `자동 분석 오류: ${data.message}`);
+        setAriaState("error");
+      }
+    } catch {}
+  };
 }
 
-function showAutoReport(report) {
+function showAutoAnalysisStarted(projectName) {
   const resultCard = document.getElementById("result-card");
   const analysisBody = document.getElementById("analysis-body");
   const reportSaved = document.getElementById("report-saved");
-  const copyBtn = document.getElementById("copy-btn");
   resultCard.style.display = "block";
-  analysisBody.innerHTML = marked.parse(report.content);
-  reportSaved.textContent = `✓ 저장됨: ${report.filename}`;
-  setStatus("done", "✅ 분석 완료 (자동)");
+  analysisBody.innerHTML = "";
+  reportSaved.textContent = "";
+  document.getElementById("copy-btn").style.display = "none";
+  setStatus("loading", `${projectName} 커밋 자동 분석 중...`);
+  setAriaState("thinking");
+  resultCard.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function showAutoAnalysisDone({ filename, content }) {
+  const analysisBody = document.getElementById("analysis-body");
+  const reportSaved = document.getElementById("report-saved");
+  const copyBtn = document.getElementById("copy-btn");
+  analysisBody.innerHTML = marked.parse(content);
+  reportSaved.textContent = `✓ 저장됨: ${filename}`;
+  setStatus("done", "✅ 자동 분석 완료!");
+  setAriaState("done");
   copyBtn.style.display = "inline-flex";
-  copyBtn._text = report.content;
+  copyBtn._text = content;
 }
 
 // ── Reports Tab ──

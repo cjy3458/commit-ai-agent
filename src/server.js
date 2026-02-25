@@ -81,6 +81,18 @@ function resolveProjectPath(projectName) {
 }
 
 // ──────────────────────────────────────────────
+//  SSE: 자동 분석 이벤트 브로드캐스트
+// ──────────────────────────────────────────────
+const sseClients = new Set();
+
+function broadcastEvent(data) {
+  const payload = `data: ${JSON.stringify(data)}\n\n`;
+  for (const client of sseClients) {
+    client.write(payload);
+  }
+}
+
+// ──────────────────────────────────────────────
 //  백그라운드 분석 작업 큐 (post-commit 훅용)
 // ──────────────────────────────────────────────
 const analysisQueue = [];
@@ -91,6 +103,8 @@ async function processNextQueueItem() {
   isProcessingQueue = true;
 
   const job = analysisQueue.shift();
+  broadcastEvent({ type: "analysis-started", projectName: job.projectName });
+
   try {
     const { projectPath, projectName } = job;
     const commit = await getLatestCommit(projectPath);
@@ -104,9 +118,13 @@ async function processNextQueueItem() {
       const reportFilename = `${projectName}-${timestamp}.md`;
       const fullReport = `# 커밋 분석 리포트 (자동): ${projectName}\n\n> 생성 시각: ${new Date().toLocaleString("ko-KR")}\n> post-commit 훅에 의해 자동 생성됨\n\n## 커밋 정보\n| 항목 | 내용 |\n|---|---|\n| 해시 | \`${commit.shortHash}\` |\n| 메시지 | ${commit.message} |\n| 작성자 | ${commit.author} |\n| 날짜 | ${commit.date} |\n\n---\n\n${analysis}\n`;
       fs.writeFileSync(path.join(REPORTS_DIR, reportFilename), fullReport, "utf-8");
+      broadcastEvent({ type: "analysis-done", projectName, filename: reportFilename, content: fullReport });
       console.log(`[auto] 분석 완료: ${projectName} (${commit.shortHash})`);
+    } else {
+      broadcastEvent({ type: "analysis-error", message: "GEMINI_API_KEY가 설정되지 않았습니다." });
     }
   } catch (err) {
+    broadcastEvent({ type: "analysis-error", message: err.message });
     console.error(`[auto] 분석 실패: ${err.message}`);
   } finally {
     isProcessingQueue = false;
@@ -127,6 +145,18 @@ app.get("/api/icon/:size", (req, res) => {
 
 app.get("/favicon.ico", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "icon.svg"));
+});
+
+// ──────────────────────────────────────────────
+//  API: SSE — 자동 분석 이벤트 스트림
+// ──────────────────────────────────────────────
+app.get("/api/events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+  sseClients.add(res);
+  req.on("close", () => sseClients.delete(res));
 });
 
 // ──────────────────────────────────────────────
@@ -434,25 +464,6 @@ app.get("/api/reports", (req, res) => {
     res.json({ reports: files });
   } catch {
     res.json({ reports: [] });
-  }
-});
-
-// ──────────────────────────────────────────────
-//  API: 최신 리포트 조회 (자동 갱신용)
-// ──────────────────────────────────────────────
-app.get("/api/reports/latest", (req, res) => {
-  try {
-    const files = fs
-      .readdirSync(REPORTS_DIR)
-      .filter((f) => f.endsWith(".md"))
-      .sort()
-      .reverse();
-    if (!files.length) return res.json({ report: null });
-    const filename = files[0];
-    const content = fs.readFileSync(path.join(REPORTS_DIR, filename), "utf-8");
-    res.json({ report: { filename, content } });
-  } catch {
-    res.json({ report: null });
   }
 });
 
